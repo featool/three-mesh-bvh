@@ -5,5 +5,9 @@ export default defineConfig( {
 		environment: 'node',
 		globals: true,
 		setupFiles: [ './test/matchers/toEqualBVH.js' ],
+		typecheck: {
+			enabled: true,
+			tsconfig: './tsconfig.json',
+		},
 	},
 } );

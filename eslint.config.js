@@ -56,7 +56,7 @@ export default [
 	// jsdoc
 	{
 		name: 'jsdoc rules',
-		files: [ '**/*.js' ],
+		files: [ '**/*.js', '**/*.ts' ],
 		plugins: {
 			jsdoc,
 		},

@@ -1,9 +1,18 @@
 {
   "compilerOptions": {
-    "lib": [ "dom", "es2017" ],
+    "lib": ["dom", "es2017"],
     "module": "node20",
+    "moduleResolution": "bundler",
+    "target": "es2017",
     "strict": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
   },
   "include": [
     "src",

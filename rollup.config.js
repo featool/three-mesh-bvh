@@ -1,8 +1,24 @@
+import typescript from '@rollup/plugin-typescript';
+
+const baseConfig = {
+	input: './src/index.js',
+	treeshake: false,
+	external: p => /^three/.test( p ),
+	plugins: [
+		typescript( {
+			tsconfig: './tsconfig.json',
+			compilerOptions: {
+				noEmit: false,
+				declaration: false,
+				allowJs: true,
+			},
+		} ),
+	],
+};
+
 export default [
 	{
-		input: './src/index.js',
-		treeshake: false,
-		external: p => /^three/.test( p ),
+		...baseConfig,
 
 		output: {
 
@@ -18,9 +34,7 @@ export default [
 
 	},
 	{
-		input: './src/index.js',
-		treeshake: false,
-		external: p => /^three/.test( p ),
+		...baseConfig,
 
 		output: {
 
