@@ -1,7 +1,7 @@
 import typescript from '@rollup/plugin-typescript';
 
 const baseConfig = {
-	input: './src/index.js',
+	input: './src/index.ts',
 	treeshake: false,
 	external: p => /^three/.test( p ),
 	plugins: [
