@@ -23,7 +23,7 @@ const _tempBuffer = /* @__PURE__ */ new Float32Array( 6 );
  * @param {number|undefined} score
  * @param {number} depth
  * @param {number} nodeIndex
- * @returns {number}
+ * @returns {number|boolean}
  */
 
 /**
@@ -76,10 +76,10 @@ export class BVH {
 	}
 
 	/**
-	 * @param {{start: number, count: number}|null} [range]
+	 * @param {{start: number, count: number}|null} [_range]
 	 * @returns {Array<{offset: number, count: number}>}
 	 */
-	getRootRanges( /* range */ ) {
+	getRootRanges( _range ) {
 
 		// TODO: can we avoid passing range in here?
 		throw new Error( 'BVH: getRootRanges() not implemented' );
@@ -89,12 +89,12 @@ export class BVH {
 	// write the i-th primitive bounds in a 6-value min / max format to the buffer
 	// starting at the given "writeOffset"
 	/**
-	 * @param {number} i
-	 * @param {Float32Array} buffer
-	 * @param {number} writeOffset
-	 * @returns {void}
+	 * @param {number} _i
+	 * @param {Float32Array} _buffer
+	 * @param {number} _writeOffset
+	 * @returns {*}
 	 */
-	writePrimitiveBounds( /* i, buffer, writeOffset */ ) {
+	writePrimitiveBounds( _i, _buffer, _writeOffset ) {
 
 		throw new Error( 'BVH: writePrimitiveBounds() not implemented' );
 
@@ -362,6 +362,9 @@ export class BVH {
 	 * @param {IntersectsBoundsCallback} callbacks.intersectsBounds
 	 * @param {IntersectsRangeCallback} [callbacks.intersectsRange]
 	 * @param {BoundsTraverseOrderCallback} [callbacks.boundsTraverseOrder]
+	 * @param {Function} [callbacks.intersectsPrimitive]
+	 * @param {*} [callbacks.scratchPrimitive]
+	 * @param {Function} [callbacks.iterate]
 	 * @returns {boolean}
 	 */
 	// TODO: see if we can get rid of "iterateFunc" here as well as the primitive so the function

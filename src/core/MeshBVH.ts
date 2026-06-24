@@ -1,7 +1,19 @@
-/** @import { BufferGeometry, Sphere, Box3, Intersection, Material, Object3D, Raycaster } from 'three' */
-/** @import { ExtendedTriangle } from '../math/ExtendedTriangle.js' */
-/** @import { IntersectsBoundsCallback, IntersectsRangeCallback, BoundsTraverseOrderCallback, IntersectsRangesCallback } from './BVH.js' */
-import { BufferAttribute, FrontSide, Ray, Vector3, Matrix4 } from 'three';
+import {
+	BufferAttribute,
+	FrontSide,
+	Ray,
+	Vector3,
+	Matrix4,
+	Box3,
+	Sphere,
+	BufferGeometry,
+	Intersection,
+	Material,
+	Object3D,
+	Raycaster,
+	Side,
+} from 'three';
+import { ExtendedTriangle } from '../math/ExtendedTriangle.js';
 import { SKIP_GENERATION, BYTES_PER_NODE, UINT32_PER_NODE, FLOAT32_EPSILON } from './Constants.js';
 import { OrientedBox } from '../math/OrientedBox.js';
 import { ExtendedTrianglePool } from '../utils/ExtendedTrianglePool.js';
@@ -23,56 +35,128 @@ import { intersectsGeometry_indirect } from './cast/intersectsGeometry_indirect.
 import { closestPointToGeometry_indirect } from './cast/closestPointToGeometry_indirect.generated.js';
 import { setTriangle } from '../utils/TriangleUtilities.js';
 import { convertRaycastIntersect } from '../utils/GeometryRayIntersectUtilities.js';
-import { GeometryBVH } from './GeometryBVH.js';
+import { GeometryBVH, GeometryBVHOptions } from './GeometryBVH.js';
 
 const _obb = /* @__PURE__ */ new OrientedBox();
 const _ray = /* @__PURE__ */ new Ray();
 const _direction = /* @__PURE__ */ new Vector3();
 const _inverseMatrix = /* @__PURE__ */ new Matrix4();
 const _worldScale = /* @__PURE__ */ new Vector3();
-const _getters = [ 'getX', 'getY', 'getZ' ];
+const _getters = [ 'getX', 'getY', 'getZ' ] as const;
 
-/**
- * @callback IntersectsTriangleCallback
- * @param {ExtendedTriangle} triangle - The triangle primitive in local space.
- * @param {number} triangleIndex - The index of the triangle in the geometry.
- * @param {boolean} contained - Whether the node bounds are fully contained by the query shape.
- * @param {number} depth - The depth of the node in the tree.
- * @returns {boolean} Return `true` to stop traversal.
- */
+/** Callback invoked for each triangle primitive during `shapecast`. */
+export type IntersectsTriangleCallback = (
+	triangle: ExtendedTriangle,
+	triangleIndex: number,
+	contained: boolean,
+	depth: number,
+) => boolean | void;
 
-/**
- * @callback IntersectsTrianglesCallback
- * @param {ExtendedTriangle} triangle1 - Triangle from this BVH in local space.
- * @param {ExtendedTriangle} triangle2 - Triangle from `otherBvh`, transformed into local space.
- * @param {number} triangleIndex1 - Triangle index in the first geometry.
- * @param {number} triangleIndex2 - Triangle index in the second geometry.
- * @param {number} depth1 - Depth of the node in the first BVH.
- * @param {number} nodeIndex1 - Node index in the first BVH.
- * @param {number} depth2 - Depth of the node in the second BVH.
- * @param {number} nodeIndex2 - Node index in the second BVH.
- * @returns {boolean} Return `true` to stop traversal.
- */
+/** Callback invoked for each pair of triangles during `bvhcast`. */
+export type IntersectsTrianglesCallback = (
+	triangle1: ExtendedTriangle,
+	triangle2: ExtendedTriangle,
+	triangleIndex1: number,
+	triangleIndex2: number,
+	depth1: number,
+	nodeIndex1: number,
+	depth2: number,
+	nodeIndex2: number,
+) => boolean;
 
 /**
  * Plain-object representation of a `MeshBVH` produced by `MeshBVH.serialize` and
  * consumed by `MeshBVH.deserialize`. Suitable for transfer across WebWorker boundaries
  * or storage, with optional buffer sharing via `SharedArrayBuffer`.
- *
- * @typedef {Object} SerializedBVH
- * @property {Array<ArrayBuffer>} roots - BVH root node buffers.
- * @property {Int32Array|Uint32Array|Uint16Array|null} index - Serialized geometry index buffer.
- * @property {Uint32Array|Uint16Array|null} indirectBuffer - Indirect primitive index buffer, or `null`
- *   if the BVH was not built in indirect mode.
  */
+export interface SerializedBVH {
+
+	version?: number;
+	roots: Array<ArrayBuffer>;
+	index: Int32Array | Uint32Array | Uint16Array | null;
+	indirectBuffer: Uint32Array | Uint16Array | null;
+
+}
 
 /**
- * @typedef {Object} HitPointInfo
- * @property {Vector3} point - The closest point on the mesh surface.
- * @property {number} distance - Distance from the query point to the closest point.
- * @property {number} faceIndex - Index of the triangle containing the closest point. Can be
- *   passed to `getTriangleHitPointInfo` to retrieve UV, normal, and material index.
+ * Information about the closest point found on the mesh surface by
+ * `closestPointToPoint` or `closestPointToGeometry`.
  */
+export interface HitPointInfo {
+
+	point: Vector3;
+	distance: number;
+	faceIndex: number;
+
+}
+
+/** Options for {@link MeshBVH.serialize}. */
+export interface MeshBVHSerializeOptions {
+
+	cloneBuffers?: boolean;
+
+}
+
+/** Options for {@link MeshBVH.deserialize}. */
+export interface MeshBVHDeserializeOptions {
+
+	setIndex?: boolean;
+	indirect?: boolean;
+
+}
+
+/** Callbacks accepted by {@link MeshBVH.shapecast}. */
+export interface MeshBVHShapecastCallbacks {
+
+	intersectsBounds: (
+		box: Box3,
+		isLeaf: boolean,
+		score: number | undefined,
+		depth: number,
+		nodeIndex: number,
+	) => ShapecastIntersection | boolean;
+
+	boundsTraverseOrder?: ( box: Box3 ) => number;
+
+	intersectsRange?: (
+		offset: number,
+		count: number,
+		contained: boolean,
+		depth: number,
+		nodeIndex: number,
+		box: Box3,
+	) => boolean;
+
+	intersectsTriangle?: IntersectsTriangleCallback;
+
+}
+
+/** Callbacks accepted by {@link MeshBVH.bvhcast}. */
+export interface MeshBVHBvhcastCallbacks {
+
+	intersectsRanges?: (
+		offset1: number,
+		count1: number,
+		offset2: number,
+		count2: number,
+		depth1: number,
+		index1: number,
+		depth2: number,
+		index2: number,
+	) => boolean;
+
+	intersectsTriangles?: IntersectsTrianglesCallback;
+
+}
+
+// Re-export the intersection constants so consumers can reference them as a value type.
+export const NOT_INTERSECTED = 0 as const;
+export const INTERSECTED = 1 as const;
+export const CONTAINED = 2 as const;
+export type ShapecastIntersection = typeof NOT_INTERSECTED | typeof INTERSECTED | typeof CONTAINED;
+
+// Internal: a Float32Array carrying an `offset` field used by the build/cast helpers.
+type OffsetFloat32Array = Float32Array & { offset?: number };
 
 /**
  * The MeshBVH generation process modifies the geometry's index bufferAttribute in place to save
@@ -86,10 +170,6 @@ const _getters = [ 'getX', 'getY', 'getZ' ];
  * Note that all query functions expect arguments in local space of the BVH and return results in
  * local space, as well. If world space results are needed they must be transformed into world space
  * using `object.matrixWorld`.
- *
- * @param {BufferGeometry} geometry
- * @param {Object} [options] - Same options as {@link GeometryBVH}.
- * @extends GeometryBVH
  */
 export class MeshBVH extends GeometryBVH {
 
@@ -102,14 +182,13 @@ export class MeshBVH extends GeometryBVH {
 	 * not be modified. If `SharedArrayBuffers` are used then the same BVH memory can be used for
 	 * multiple BVH in multiple WebWorkers.
 	 *
-	 * @static
 	 * @param {MeshBVH} bvh - The BVH to serialize.
-	 * @param {Object} [options]
-	 * @param {boolean} [options.cloneBuffers=true] - If `true`, the index and BVH root buffers
-	 *   are cloned so the serialized data is independent of the live BVH.
-	 * @returns {SerializedBVH}
+	 * @param {MeshBVHSerializeOptions} options - Serialization options.
+	 * @param {boolean} [options.cloneBuffers] - If `true`, the index and BVH root buffers are cloned so the
+	 *   serialized data is independent of the live BVH.
+	 * @returns {SerializedBVH} The serialized BVH data.
 	 */
-	static serialize( bvh, options = {} ) {
+	static serialize( bvh: MeshBVH, options: MeshBVHSerializeOptions = {} ): SerializedBVH {
 
 		options = {
 			cloneBuffers: true,
@@ -117,25 +196,25 @@ export class MeshBVH extends GeometryBVH {
 		};
 
 		const geometry = bvh.geometry;
-		const rootData = bvh._roots;
+		const rootData = bvh._roots!;
 		const indirectBuffer = bvh._indirectBuffer;
 		const indexAttribute = geometry.getIndex();
-		const result = {
+		const result: SerializedBVH = {
 			version: 1,
-			roots: null,
+			roots: null as unknown as ArrayBuffer[],
 			index: null,
 			indirectBuffer: null,
 		};
 		if ( options.cloneBuffers ) {
 
 			result.roots = rootData.map( root => root.slice() );
-			result.index = indexAttribute ? indexAttribute.array.slice() : null;
-			result.indirectBuffer = indirectBuffer ? indirectBuffer.slice() : null;
+			result.index = indexAttribute ? indexAttribute.array.slice() as Int32Array | Uint32Array | Uint16Array : null;
+			result.indirectBuffer = indirectBuffer ? indirectBuffer.slice() as Uint32Array | Uint16Array : null;
 
 		} else {
 
 			result.roots = rootData;
-			result.index = indexAttribute ? indexAttribute.array : null;
+			result.index = indexAttribute ? indexAttribute.array as Int32Array | Uint32Array | Uint16Array : null;
 			result.indirectBuffer = indirectBuffer;
 
 		}
@@ -149,17 +228,20 @@ export class MeshBVH extends GeometryBVH {
 	 * to generate the original BVH `data` was derived from. The root buffers stored in `data`
 	 * are set directly on the new BVH so the memory is shared.
 	 *
-	 * @static
 	 * @param {SerializedBVH} data - Serialized BVH data.
 	 * @param {BufferGeometry} geometry - The geometry the BVH was originally built from.
-	 * @param {Object} [options]
-	 * @param {boolean} [options.setIndex=true] - If `true`, sets `geometry.index` from the
-	 *   serialized index buffer (creating one if none exists).
-	 * @returns {MeshBVH}
+	 * @param {MeshBVHDeserializeOptions} options - Deserialization options.
+	 * @param {boolean} [options.setIndex] - If `true`, sets `geometry.index` from the serialized index buffer
+	 *   (creating one if none exists).
+	 * @returns {MeshBVH} A new MeshBVH instance.
 	 */
-	static deserialize( data, geometry, options = {} ) {
+	static deserialize(
+		data: SerializedBVH,
+		geometry: BufferGeometry,
+		options: MeshBVHDeserializeOptions = {},
+	): MeshBVH {
 
-		options = {
+		const resolvedOptions: MeshBVHDeserializeOptions & Record<symbol, unknown> = {
 			setIndex: true,
 			indirect: Boolean( data.indirectBuffer ),
 			...options,
@@ -179,21 +261,21 @@ export class MeshBVH extends GeometryBVH {
 
 		}
 
-		const bvh = new MeshBVH( geometry, { ...options, [ SKIP_GENERATION ]: true } );
+		const bvh = new MeshBVH( geometry, { ...resolvedOptions, [ SKIP_GENERATION ]: true } as GeometryBVHOptions );
 		bvh._roots = roots;
 		bvh._indirectBuffer = indirectBuffer || null;
 
-		if ( options.setIndex ) {
+		if ( resolvedOptions.setIndex ) {
 
 			const indexAttribute = geometry.getIndex();
 			if ( indexAttribute === null ) {
 
-				const newIndex = new BufferAttribute( data.index, 1, false );
+				const newIndex = new BufferAttribute( index!, 1, false );
 				geometry.setIndex( newIndex );
 
 			} else if ( indexAttribute.array !== index ) {
 
-				indexAttribute.array.set( index );
+				( indexAttribute.array as Int32Array | Uint32Array | Uint16Array ).set( index! );
 				indexAttribute.needsUpdate = true;
 
 			}
@@ -203,7 +285,11 @@ export class MeshBVH extends GeometryBVH {
 		return bvh;
 
 		// convert version 0 serialized data (uint32 indices) to version 1 (node indices)
-		function fixupVersion0( roots ) {
+		/**
+		 * @param {ArrayBuffer[]} roots
+		 * @returns {void}
+		 */
+		function fixupVersion0( roots: ArrayBuffer[] ): void {
 
 			for ( let rootIndex = 0; rootIndex < roots.length; rootIndex ++ ) {
 
@@ -231,7 +317,7 @@ export class MeshBVH extends GeometryBVH {
 
 	}
 
-	get primitiveStride() {
+	override get primitiveStride(): number {
 
 		return 3;
 
@@ -241,23 +327,21 @@ export class MeshBVH extends GeometryBVH {
 	 * Helper function for use when `indirect` is set to true. This function takes a triangle
 	 * index in the BVH layout and returns the associated triangle index in the geometry index
 	 * buffer or position attribute.
-	 * @type {function(number): number}
-	 * @readonly
 	 */
-	get resolveTriangleIndex() {
+	get resolveTriangleIndex(): ( i: number ) => number {
 
 		return this.resolvePrimitiveIndex;
 
 	}
 
-	constructor( geometry, options = {} ) {
+	constructor( geometry: BufferGeometry, options: GeometryBVHOptions = {} ) {
 
-		if ( options.maxLeafTris ) {
+		if ( ( options as { maxLeafTris?: number } ).maxLeafTris ) {
 
 			console.warn( 'MeshBVH: "maxLeafTris" option has been deprecated. Use maxLeafSize, instead.' );
 			options = {
 				...options,
-				maxLeafSize: options.maxLeafTris,
+				maxLeafSize: ( options as { maxLeafTris?: number } ).maxLeafTris,
 			};
 
 		}
@@ -273,23 +357,22 @@ export class MeshBVH extends GeometryBVH {
 	 * This function only adjusts the BVH to point to different triangles in the geometry. The
 	 * geometry's index buffer and/or position attributes must be updated separately to match.
 	 *
-	 * @param {number} offset
-	 * @returns {void}
+	 * @param {number} offset - The offset to shift triangle indices by.
 	 */
 	// implement abstract methods from BVH base class
-	shiftTriangleOffsets( offset ) {
+	shiftTriangleOffsets( offset: number ): void {
 
 		return super.shiftPrimitiveOffsets( offset );
 
 	}
 
 	// write primitive bounds to the buffer - used only for validateBounds at the moment
-	writePrimitiveBounds( i, targetBuffer, baseIndex ) {
+	writePrimitiveBounds( i: number, targetBuffer: OffsetFloat32Array, baseIndex: number ): OffsetFloat32Array {
 
 		const geometry = this.geometry;
 		const indirectBuffer = this._indirectBuffer;
-		const posAttr = geometry.attributes.position;
-		const index = geometry.index ? geometry.index.array : null;
+		const posAttr = geometry.attributes.position as BufferAttribute & { [ key: string ]: ( index: number ) => number };
+		const index = geometry.index ? ( geometry.index.array as Uint32Array | Uint16Array ) : null;
 
 		const tri = indirectBuffer ? indirectBuffer[ i ] : i;
 		const tri3 = tri * 3;
@@ -334,35 +417,46 @@ export class MeshBVH extends GeometryBVH {
 	// result is an array of size count * 6 where triangle i maps to a
 	// [x_center, x_delta, y_center, y_delta, z_center, z_delta] tuple starting at index (i - offset) * 6,
 	// representing the center and half-extent in each dimension of triangle i
-	computePrimitiveBounds( offset, count, targetBuffer ) {
+	computePrimitiveBounds(
+		offset: number,
+		count: number,
+		targetBuffer: OffsetFloat32Array,
+	): OffsetFloat32Array {
 
 		const geometry = this.geometry;
 		const indirectBuffer = this._indirectBuffer;
-		const posAttr = geometry.attributes.position;
-		const index = geometry.index ? geometry.index.array : null;
+		const posAttr = geometry.attributes.position as BufferAttribute & {
+			normalized: boolean;
+			array: ArrayLike<number>;
+			offset: number;
+			isInterleavedBufferAttribute?: boolean;
+			data?: { stride: number };
+			[ key: string ]: unknown;
+		};
+		const index = geometry.index ? ( geometry.index.array as Uint32Array | Uint16Array ) : null;
 		const normalized = posAttr.normalized;
 
-		if ( offset < 0 || count + offset - targetBuffer.offset > targetBuffer.length / 6 ) {
+		if ( offset < 0 || count + offset - ( targetBuffer.offset || 0 ) > targetBuffer.length / 6 ) {
 
 			throw new Error( 'MeshBVH: compute triangle bounds range is invalid.' );
 
 		}
 
 		// used for non-normalized positions
-		const posArr = posAttr.array;
+		const posArr = posAttr.array as ArrayLike<number>;
 
 		// support for an interleaved position buffer
 		const bufferOffset = posAttr.offset || 0;
 		let stride = 3;
 		if ( posAttr.isInterleavedBufferAttribute ) {
 
-			stride = posAttr.data.stride;
+			stride = posAttr.data!.stride;
 
 		}
 
 		// used for normalized positions
-		const getters = [ 'getX', 'getY', 'getZ' ];
-		const writeOffset = targetBuffer.offset;
+		const getters = [ 'getX', 'getY', 'getZ' ] as const;
+		const writeOffset = targetBuffer.offset || 0;
 
 		// iterate over the triangle range
 		for ( let i = offset, l = offset + count; i < l; i ++ ) {
@@ -395,13 +489,13 @@ export class MeshBVH extends GeometryBVH {
 
 			for ( let el = 0; el < 3; el ++ ) {
 
-				let a, b, c;
+				let a: number, b: number, c: number;
 
 				if ( normalized ) {
 
-					a = posAttr[ getters[ el ] ]( ai );
-					b = posAttr[ getters[ el ] ]( bi );
-					c = posAttr[ getters[ el ] ]( ci );
+					a = ( posAttr[ getters[ el ] ] as ( index: number ) => number )( ai );
+					b = ( posAttr[ getters[ el ] ] as ( index: number ) => number )( bi );
+					c = ( posAttr[ getters[ el ] ] as ( index: number ) => number )( ci );
 
 				} else {
 
@@ -439,17 +533,19 @@ export class MeshBVH extends GeometryBVH {
 	 * A convenience function for performing a raycast based on a mesh. Results are formed like
 	 * three.js raycast results in world frame.
 	 *
-	 * @param {Object3D} object
-	 * @param {Raycaster} raycaster
-	 * @param {Array<Intersection>} [intersects=[]]
-	 * @returns {Array<Intersection>}
+	 * @param {Array<Intersection>} [intersects] - Array to append intersections to.
+	 * @returns {Array<Intersection>} The array of intersections.
 	 */
-	raycastObject3D( object, raycaster, intersects = [] ) {
+	raycastObject3D(
+		object: Object3D,
+		raycaster: Raycaster,
+		intersects: Array<Intersection> = [],
+	): Array<Intersection> {
 
-		const { material } = object;
+		const { material } = object as { material?: Material };
 		if ( material === undefined ) {
 
-			return;
+			return intersects;
 
 		}
 
@@ -463,10 +559,10 @@ export class MeshBVH extends GeometryBVH {
 		const near = raycaster.near / scaleFactor;
 		const far = raycaster.far / scaleFactor;
 
-		if ( raycaster.firstHitOnly === true ) {
+		if ( ( raycaster as Raycaster & { firstHitOnly?: boolean } ).firstHitOnly === true ) {
 
 			let hit = this.raycastFirst( _ray, material, near, far );
-			hit = convertRaycastIntersect( hit, object, raycaster );
+			hit = convertRaycastIntersect( hit, object, raycaster ) as Intersection | null;
 			if ( hit ) {
 
 				intersects.push( hit );
@@ -478,7 +574,7 @@ export class MeshBVH extends GeometryBVH {
 			const hits = this.raycast( _ray, material, near, far );
 			for ( let i = 0, l = hits.length; i < l; i ++ ) {
 
-				const hit = convertRaycastIntersect( hits[ i ], object, raycaster );
+				const hit = convertRaycastIntersect( hits[ i ], object, raycaster ) as Intersection | null;
 				if ( hit ) {
 
 					intersects.push( hit );
@@ -499,12 +595,12 @@ export class MeshBVH extends GeometryBVH {
 	 * is a set of node indices (provided by the `shapecast` function) that need to be refit
 	 * including all internal nodes.
 	 *
-	 * @param {Set<number>|Array<number>|null} [nodeIndices=null]
+	 * @param {Set<number>|Array<number>|null} [nodeIndices] - Optional set of node indices to refit.
 	 */
-	refit( nodeIndices = null ) {
+	refit( nodeIndices: Set<number> | Array<number> | null = null ): void {
 
 		const refitFunc = this.indirect ? refit_indirect : refit;
-		return refitFunc( this, nodeIndices );
+		return refitFunc( this, nodeIndices as unknown as null );
 
 	}
 
@@ -523,16 +619,21 @@ export class MeshBVH extends GeometryBVH {
 	 * `acceleratedRaycast` function as an override for `Mesh.raycast` they are transformed into
 	 * world space to be consistent with three's results.
 	 *
-	 * @param {Ray} ray
-	 * @param {number|Material|Array<Material>} [materialOrSide=FrontSide]
-	 * @param {number} [near=0]
-	 * @param {number} [far=Infinity]
-	 * @returns {Array<Intersection>}
+	 * @param {Ray} ray - The ray to cast.
+	 * @param {Side|Material|Array<Material>} [materialOrSide] - The side or material(s) to use.
+	 * @param {number} [near] - The near plane distance.
+	 * @param {number} [far] - The far plane distance.
+	 * @returns {Array<Intersection>} The array of intersections.
 	 */
-	raycast( ray, materialOrSide = FrontSide, near = 0, far = Infinity ) {
+	raycast(
+		ray: Ray,
+		materialOrSide: Side | Material | Array<Material> = FrontSide,
+		near: number = 0,
+		far: number = Infinity,
+	): Array<Intersection> {
 
-		const roots = this._roots;
-		const intersects = [];
+		const roots = this._roots!;
+		const intersects: Array<Intersection> = [];
 		const raycastFunc = this.indirect ? raycast_indirect : raycast;
 		for ( let i = 0, l = roots.length; i < l; i ++ ) {
 
@@ -549,21 +650,26 @@ export class MeshBVH extends GeometryBVH {
 	 * all hits. See `raycast` for information on the side and material options as well as the
 	 * frame of the returned intersections.
 	 *
-	 * @param {Ray} ray
-	 * @param {number|Material|Array<Material>} [materialOrSide=FrontSide]
-	 * @param {number} [near=0]
-	 * @param {number} [far=Infinity]
-	 * @returns {Intersection|null}
+	 * @param {Ray} ray - The ray to cast.
+	 * @param {Side|Material|Array<Material>} [materialOrSide] - The side or material(s) to use.
+	 * @param {number} [near] - The near plane distance.
+	 * @param {number} [far] - The far plane distance.
+	 * @returns {Intersection|null} The first intersection or `null`.
 	 */
-	raycastFirst( ray, materialOrSide = FrontSide, near = 0, far = Infinity ) {
+	raycastFirst(
+		ray: Ray,
+		materialOrSide: Side | Material | Array<Material> = FrontSide,
+		near: number = 0,
+		far: number = Infinity,
+	): Intersection | null {
 
-		const roots = this._roots;
-		let closestResult = null;
+		const roots = this._roots!;
+		let closestResult: Intersection | null = null;
 
 		const raycastFirstFunc = this.indirect ? raycastFirst_indirect : raycastFirst;
 		for ( let i = 0, l = roots.length; i < l; i ++ ) {
 
-			const result = raycastFirstFunc( this, i, materialOrSide, ray, near, far );
+			const result = raycastFirstFunc( this, i, materialOrSide, ray, near, far ) as Intersection | null;
 			if ( result != null && ( closestResult == null || result.distance < closestResult.distance ) ) {
 
 				closestResult = result;
@@ -583,15 +689,14 @@ export class MeshBVH extends GeometryBVH {
 	 *
 	 * Performance improves considerably if the provided geometry also has a `boundsTree`.
 	 *
-	 * @param {BufferGeometry} otherGeometry
-	 * @param {Matrix4} geometryToBvh - Transform of `otherGeometry` into the local space of
-	 *   this BVH.
-	 * @returns {boolean}
+	 * @param {BufferGeometry} otherGeometry - The geometry to test intersection against.
+	 * @param {Matrix4} geomToMesh - Transform of `otherGeometry` into the local space of this BVH.
+	 * @returns {boolean} Whether the geometries intersect.
 	 */
-	intersectsGeometry( otherGeometry, geomToMesh ) {
+	intersectsGeometry( otherGeometry: BufferGeometry, geomToMesh: Matrix4 ): boolean {
 
 		let result = false;
-		const roots = this._roots;
+		const roots = this._roots!;
 		const intersectsGeometryFunc = this.indirect ? intersectsGeometry_indirect : intersectsGeometry;
 		for ( let i = 0, l = roots.length; i < l; i ++ ) {
 
@@ -615,14 +720,10 @@ export class MeshBVH extends GeometryBVH {
 	 * function returns as soon as a triangle has been reported as intersected and returns `true`
 	 * if a triangle has been intersected.
 	 *
-	 * @param {Object} callbacks
-	 * @param {IntersectsBoundsCallback} callbacks.intersectsBounds
-	 * @param {IntersectsTriangleCallback} [callbacks.intersectsTriangle]
-	 * @param {IntersectsRangeCallback} [callbacks.intersectsRange]
-	 * @param {BoundsTraverseOrderCallback} [callbacks.boundsTraverseOrder]
-	 * @returns {boolean}
+	 * @param {MeshBVHShapecastCallbacks} callbacks - The shapecast callbacks.
+	 * @returns {boolean} Whether an intersection was found.
 	 */
-	shapecast( callbacks ) {
+	shapecast( callbacks: MeshBVHShapecastCallbacks ): boolean {
 
 		const triangle = ExtendedTrianglePool.getPrimitive();
 		const result = super.shapecast(
@@ -651,32 +752,31 @@ export class MeshBVH extends GeometryBVH {
 	 * `matrixToLocal` is a Matrix4 that transforms `otherBvh` into the local space of this BVH.
 	 * The other BVH's triangles are transformed by this matrix before intersection tests.
 	 *
-	 * @param {MeshBVH} otherBvh
+	 * @param {MeshBVH} otherBvh - The other BVH to test against.
 	 * @param {Matrix4} matrixToLocal - Transforms `otherBvh` into the local space of this BVH.
-	 * @param {Object} callbacks
-	 * @param {IntersectsRangesCallback} [callbacks.intersectsRanges]
-	 * @param {IntersectsTrianglesCallback} [callbacks.intersectsTriangles]
-	 * @returns {boolean}
+	 * @param {MeshBVHBvhcastCallbacks} callbacks - The bvhcast callbacks.
+	 * @returns {boolean} Whether an intersection was found.
 	 */
-	bvhcast( otherBvh, matrixToLocal, callbacks ) {
+	bvhcast(
+		otherBvh: MeshBVH,
+		matrixToLocal: Matrix4,
+		callbacks: MeshBVHBvhcastCallbacks,
+	): boolean {
 
-		let {
-			intersectsRanges,
-			intersectsTriangles,
-		} = callbacks;
+		const { intersectsTriangles } = callbacks;
+		let { intersectsRanges } = callbacks;
 
 		const triangle1 = ExtendedTrianglePool.getPrimitive();
 		const indexAttr1 = this.geometry.index;
 		const positionAttr1 = this.geometry.attributes.position;
 		const assignTriangle1 = this.indirect ?
-			i1 => {
-
+			( i1: number ) => {
 
 				const ti = this.resolveTriangleIndex( i1 );
 				setTriangle( triangle1, ti * 3, indexAttr1, positionAttr1 );
 
 			} :
-			i1 => {
+			( i1: number ) => {
 
 				setTriangle( triangle1, i1 * 3, indexAttr1, positionAttr1 );
 
@@ -686,13 +786,13 @@ export class MeshBVH extends GeometryBVH {
 		const indexAttr2 = otherBvh.geometry.index;
 		const positionAttr2 = otherBvh.geometry.attributes.position;
 		const assignTriangle2 = otherBvh.indirect ?
-			i2 => {
+			( i2: number ) => {
 
 				const ti2 = otherBvh.resolveTriangleIndex( i2 );
 				setTriangle( triangle2, ti2 * 3, indexAttr2, positionAttr2 );
 
 			} :
-			i2 => {
+			( i2: number ) => {
 
 				setTriangle( triangle2, i2 * 3, indexAttr2, positionAttr2 );
 
@@ -707,7 +807,16 @@ export class MeshBVH extends GeometryBVH {
 
 			}
 
-			const iterateOverDoubleTriangles = ( offset1, count1, offset2, count2, depth1, nodeIndex1, depth2, nodeIndex2 ) => {
+			const iterateOverDoubleTriangles = (
+				offset1: number,
+				count1: number,
+				offset2: number,
+				count2: number,
+				depth1: number,
+				nodeIndex1: number,
+				depth2: number,
+				nodeIndex2: number,
+			): boolean => {
 
 				for ( let i2 = offset2, l2 = offset2 + count2; i2 < l2; i2 ++ ) {
 
@@ -724,7 +833,7 @@ export class MeshBVH extends GeometryBVH {
 
 						triangle1.needsUpdate = true;
 
-						if ( intersectsTriangles( triangle1, triangle2, i1, i2, depth1, nodeIndex1, depth2, nodeIndex2 ) ) {
+						if ( intersectsTriangles!( triangle1, triangle2, i1, i2, depth1, nodeIndex1, depth2, nodeIndex2 ) ) {
 
 							return true;
 
@@ -741,9 +850,18 @@ export class MeshBVH extends GeometryBVH {
 			if ( intersectsRanges ) {
 
 				const originalIntersectsRanges = intersectsRanges;
-				intersectsRanges = function ( offset1, count1, offset2, count2, depth1, nodeIndex1, depth2, nodeIndex2 ) {
+				intersectsRanges = function (
+					offset1: number,
+					count1: number,
+					offset2: number,
+					count2: number,
+					depth1: number,
+					nodeIndex1: number,
+					depth2: number,
+					nodeIndex2: number,
+				): boolean {
 
-					if ( ! originalIntersectsRanges( offset1, count1, offset2, count2, depth1, nodeIndex1, depth2, nodeIndex2 ) ) {
+					if ( ! originalIntersectsRanges!( offset1, count1, offset2, count2, depth1, nodeIndex1, depth2, nodeIndex2 ) ) {
 
 						return iterateOverDoubleTriangles( offset1, count1, offset2, count2, depth1, nodeIndex1, depth2, nodeIndex2 );
 
@@ -761,7 +879,7 @@ export class MeshBVH extends GeometryBVH {
 
 		}
 
-		return super.bvhcast( otherBvh, matrixToLocal, { intersectsRanges } );
+		return super.bvhcast( otherBvh, matrixToLocal, { intersectsRanges: intersectsRanges! } );
 
 	}
 
@@ -773,11 +891,11 @@ export class MeshBVH extends GeometryBVH {
 	 *
 	 * The `boxToBvh` parameter is the transform of the box in the meshes frame.
 	 *
-	 * @param {Box3} box
-	 * @param {Matrix4} boxToBvh - Transform of the box in the local space of this BVH.
-	 * @returns {boolean}
+	 * @param {Box3} box - The box to test.
+	 * @param {Matrix4} boxToMesh - Transform of the box in the local space of this BVH.
+	 * @returns {boolean} Whether the box intersects the mesh.
 	 */
-	intersectsBox( box, boxToMesh ) {
+	intersectsBox( box: Box3, boxToMesh: Matrix4 ): boolean {
 
 		_obb.set( box.min, box.max, boxToMesh );
 		_obb.needsUpdate = true;
@@ -794,10 +912,10 @@ export class MeshBVH extends GeometryBVH {
 	/**
 	 * Returns whether or not the mesh intersects the given sphere.
 	 *
-	 * @param {Sphere} sphere
-	 * @returns {boolean}
+	 * @param {Sphere} sphere - The sphere to test.
+	 * @returns {boolean} Whether the sphere intersects the mesh.
 	 */
-	intersectsSphere( sphere ) {
+	intersectsSphere( sphere: Sphere ): boolean {
 
 		return this.shapecast(
 			{
@@ -828,16 +946,22 @@ export class MeshBVH extends GeometryBVH {
 	 * _Note that this function can be very slow if `geometry` does not have a
 	 * `geometry.boundsTree` computed._
 	 *
-	 * @param {BufferGeometry} otherGeometry
-	 * @param {Matrix4} geometryToBvh - Transform of `otherGeometry` into the local space of
-	 *   this BVH.
-	 * @param {HitPointInfo} [target1={}]
-	 * @param {HitPointInfo} [target2={}]
-	 * @param {number} [minThreshold=0]
-	 * @param {number} [maxThreshold=Infinity]
-	 * @returns {HitPointInfo|null}
+	 * @param {BufferGeometry} otherGeometry - The other geometry.
+	 * @param {Matrix4} geometryToBvh - Transform of `otherGeometry` into the local space of this BVH.
+	 * @param {HitPointInfo} [target1] - Target for the closest point on this mesh.
+	 * @param {HitPointInfo} [target2] - Target for the closest point on the other geometry.
+	 * @param {number} [minThreshold] - Minimum distance threshold.
+	 * @param {number} [maxThreshold] - Maximum distance threshold.
+	 * @returns {HitPointInfo|null} The closest point info or `null`.
 	 */
-	closestPointToGeometry( otherGeometry, geometryToBvh, target1 = { }, target2 = { }, minThreshold = 0, maxThreshold = Infinity ) {
+	closestPointToGeometry(
+		otherGeometry: BufferGeometry,
+		geometryToBvh: Matrix4,
+		target1: HitPointInfo = {} as HitPointInfo,
+		target2: HitPointInfo = {} as HitPointInfo,
+		minThreshold: number = 0,
+		maxThreshold: number = Infinity,
+	): HitPointInfo | null {
 
 		const closestPointToGeometryFunc = this.indirect ? closestPointToGeometry_indirect : closestPointToGeometry;
 		return closestPointToGeometryFunc(
@@ -848,7 +972,7 @@ export class MeshBVH extends GeometryBVH {
 			target2,
 			minThreshold,
 			maxThreshold,
-		);
+		) as HitPointInfo | null;
 
 	}
 
@@ -865,13 +989,18 @@ export class MeshBVH extends GeometryBVH {
 	 * The returned faceIndex can be used with the standalone function `getTriangleHitPointInfo`
 	 * to obtain more information like UV coordinates, triangle normal and materialIndex.
 	 *
-	 * @param {Vector3} point
-	 * @param {HitPointInfo} [target={}]
-	 * @param {number} [minThreshold=0]
-	 * @param {number} [maxThreshold=Infinity]
-	 * @returns {HitPointInfo|null}
+	 * @param {Vector3} point - The point to measure distance to.
+	 * @param {HitPointInfo} [target] - Target object to write results into.
+	 * @param {number} [minThreshold] - Minimum distance threshold.
+	 * @param {number} [maxThreshold] - Maximum distance threshold.
+	 * @returns {HitPointInfo|null} The closest point info or `null`.
 	 */
-	closestPointToPoint( point, target = { }, minThreshold = 0, maxThreshold = Infinity ) {
+	closestPointToPoint(
+		point: Vector3,
+		target: HitPointInfo = {} as HitPointInfo,
+		minThreshold: number = 0,
+		maxThreshold: number = Infinity,
+	): HitPointInfo | null {
 
 		return closestPointToPoint(
 			this,
@@ -879,7 +1008,7 @@ export class MeshBVH extends GeometryBVH {
 			target,
 			minThreshold,
 			maxThreshold,
-		);
+		) as HitPointInfo | null;
 
 	}
 
