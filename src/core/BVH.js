@@ -59,9 +59,8 @@ export class BVH {
 
 	constructor() {
 
+		/** @type {Array<ArrayBuffer>|null} */
 		this._roots = null;
-		this.primitiveBuffer = null;
-		this.primitiveBufferStride = null;
 
 	}
 
@@ -76,6 +75,10 @@ export class BVH {
 
 	}
 
+	/**
+	 * @param {{start: number, count: number}|null} [range]
+	 * @returns {Array<{offset: number, count: number}>}
+	 */
 	getRootRanges( /* range */ ) {
 
 		// TODO: can we avoid passing range in here?
@@ -85,6 +88,12 @@ export class BVH {
 
 	// write the i-th primitive bounds in a 6-value min / max format to the buffer
 	// starting at the given "writeOffset"
+	/**
+	 * @param {number} i
+	 * @param {Float32Array} buffer
+	 * @param {number} writeOffset
+	 * @returns {void}
+	 */
 	writePrimitiveBounds( /* i, buffer, writeOffset */ ) {
 
 		throw new Error( 'BVH: writePrimitiveBounds() not implemented' );
