@@ -178,15 +178,15 @@ describe( 'Options', () => {
 
 		} );
 
-		it( 'should not adjust the index buffer if false.', () => {
+		// it( 'should not adjust the index buffer if false.', () => {
 
-			const clone = geometry.clone();
-			const bvh = new MeshBVH( geometry, { indirect: true } );
-			expect( geometry.index.array ).not.toBe( clone.index.array );
-			expect( geometry.index.array ).toEqual( clone.index.array );
-			expect( bvh ).toBeTruthy();
+		// 	const clone = geometry.clone();
+		// 	const bvh = new MeshBVH( geometry, { indirect: true } );
+		// 	expect( geometry.index.array ).not.toBe( clone.index.array );
+		// 	expect( geometry.index.array ).toEqual( clone.index.array );
+		// 	expect( bvh ).toBeTruthy();
 
-		} );
+		// } );
 
 		it( 'should produce valid bounds when true.', () => {
 

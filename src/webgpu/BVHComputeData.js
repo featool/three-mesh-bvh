@@ -2,11 +2,11 @@
 import { Matrix4 } from 'three';
 import { StorageBufferAttribute, StructTypeNode } from 'three/webgpu';
 import { storage } from 'three/tsl';
-import { MeshBVH } from '../core/MeshBVH.js';
+import { MeshBVH } from '../core/MeshBVH';
 import { SkinnedMeshBVH } from '../core/SkinnedMeshBVH.js';
-import { GeometryBVH } from '../core/GeometryBVH.js';
+import { GeometryBVH } from '../core/GeometryBVH';
 import { ObjectBVH } from '../core/ObjectBVH.js';
-import { BYTES_PER_NODE } from '../core/Constants.js';
+import { BYTES_PER_NODE } from '../core/Constants';
 import { proxy, proxyFn } from './nodes/NodeProxy.js';
 import {
 	bvhNodeStruct,

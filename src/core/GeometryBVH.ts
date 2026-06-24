@@ -1,5 +1,5 @@
 import { Box3, BufferGeometry, Object3D, Raycaster, Intersection } from 'three';
-import { SKIP_GENERATION, DEFAULT_OPTIONS } from './Constants.js';
+import { SKIP_GENERATION, DEFAULT_OPTIONS } from './Constants';
 import { isSharedArrayBufferSupported } from '../utils/BufferUtils.js';
 import { ensureIndex, getRootPrimitiveRanges } from './build/geometryUtils.js';
 import { BVH } from './BVH.js';

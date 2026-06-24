@@ -4,7 +4,6 @@
  * Option for splitting each BVH node down the center of the longest axis of the bounds.
  *
  * This is the fastest construction option and will yield a good, performant bounds.
- * @type {number}
  */
 export const CENTER = 0;
 
@@ -13,7 +12,6 @@ export const CENTER = 0;
  * all triangle centroids in the bounds.
  *
  * This strategy may be better than `CENTER` with some geometry.
- * @type {number}
  */
 export const AVERAGE = 1;
 
@@ -24,7 +22,6 @@ export const AVERAGE = 1;
  *
  * This is the slowest construction option but will yield the best bounds of the three
  * options and use the least memory.
- * @type {number}
  */
 export const SAH = 2;
 
@@ -32,19 +29,16 @@ export const SAH = 2;
 
 /**
  * Indicates the shape did not intersect the given bounding box.
- * @type {number}
  */
 export const NOT_INTERSECTED = 0;
 
 /**
  * Indicates the shape did intersect the given bounding box.
- * @type {number}
  */
 export const INTERSECTED = 1;
 
 /**
  * Indicate the shape entirely contains the given bounding box.
- * @type {number}
  */
 export const CONTAINED = 2;
 
@@ -69,9 +63,24 @@ export const LEAFNODE_MASK_32 = IS_LEAFNODE_FLAG << 16;
 // https://en.wikipedia.org/wiki/Machine_epsilon#Values_for_standard_hardware_floating_point_arithmetics
 export const FLOAT32_EPSILON = Math.pow( 2, - 24 );
 
-export const SKIP_GENERATION = Symbol( 'SKIP_GENERATION' );
+export const SKIP_GENERATION: unique symbol = Symbol( 'SKIP_GENERATION' );
 
-export const DEFAULT_OPTIONS = {
+/** Default options for BVH construction. */
+export interface BVHOptions {
+
+	strategy: number;
+	maxDepth: number;
+	maxLeafSize: number;
+	useSharedArrayBuffer: boolean;
+	setBoundingBox: boolean;
+	onProgress: ( ( progress: number ) => void ) | null;
+	indirect: boolean;
+	verbose: boolean;
+	range: { start: number; count: number } | null;
+
+}
+
+export const DEFAULT_OPTIONS: BVHOptions & Record<typeof SKIP_GENERATION, boolean> = {
 	strategy: CENTER,
 	maxDepth: 40,
 	maxLeafSize: 10,
@@ -83,4 +92,3 @@ export const DEFAULT_OPTIONS = {
 	range: null,
 	[ SKIP_GENERATION ]: false,
 };
-

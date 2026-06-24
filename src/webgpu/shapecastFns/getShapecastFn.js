@@ -1,7 +1,7 @@
 /** @import { StructTypeNode } from 'three/webgpu' */
 /** @import { BVHComputeData } from '../BVHComputeData.js' */
 import { wgslTagCode, wgslTagFn } from '../nodes/WGSLTagFnNode.js';
-import { BVH_STACK_DEPTH } from '../tsl/constants.js';
+import { BVH_STACK_DEPTH } from '../tsl/constants';
 
 /**
  * Builds a pair of WGSL shapecast functions (BLAS + TLAS traversal) for a custom shape

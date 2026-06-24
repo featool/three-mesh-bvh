@@ -1,7 +1,7 @@
 /** @import { Raycaster, Intersection } from 'three' */
 /** @import { GeometryBVH } from '../core/GeometryBVH.js' */
 import { Mesh, Points, Line, LineLoop, LineSegments, Sphere, BatchedMesh, REVISION } from 'three';
-import { MeshBVH } from '../core/MeshBVH.js';
+import { MeshBVH } from '../core/MeshBVH';
 
 const IS_REVISION_166 = parseInt( REVISION ) >= 166;
 

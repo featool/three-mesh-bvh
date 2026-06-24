@@ -1,5 +1,5 @@
 import { Box3 } from 'three';
-import { CONTAINED, UINT32_PER_NODE } from '../Constants.js';
+import { CONTAINED, UINT32_PER_NODE } from '../Constants';
 import { arrayToBox } from '../../utils/ArrayBoxUtilities.js';
 import { PrimitivePool } from '../../utils/PrimitivePool.js';
 import { COUNT, OFFSET, LEFT_NODE, RIGHT_NODE, IS_LEAF, BOUNDING_DATA_INDEX } from '../utils/nodeBufferUtils.js';

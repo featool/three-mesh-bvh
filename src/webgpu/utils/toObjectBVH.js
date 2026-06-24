@@ -1,8 +1,8 @@
 /** @import { Object3D, BufferGeometry } from 'three' */
 import { Mesh } from 'three/webgpu';
-import { GeometryBVH } from '../../core/GeometryBVH.js';
+import { GeometryBVH } from '../../core/GeometryBVH';
 import { ObjectBVH } from '../../core/ObjectBVH.js';
-import { SAH } from '../../core/Constants.js';
+import { SAH } from '../../core/Constants';
 
 /**
  * Normalizes the various accepted `bvh` arguments into an {@link ObjectBVH}. A pre-built ObjectBVH

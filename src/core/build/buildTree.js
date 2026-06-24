@@ -1,7 +1,7 @@
 import { getBounds } from './computeBoundsUtils.js';
 import { getOptimalSplit } from './splitUtils.js';
 import { BVHNode } from '../BVHNode.js';
-import { BYTES_PER_NODE } from '../Constants.js';
+import { BYTES_PER_NODE } from '../Constants';
 
 import { partition } from './sortUtils.js';
 import { countNodes, populateBuffer } from './buildUtils.js';

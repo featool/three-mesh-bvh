@@ -2,7 +2,7 @@
 /** @import { GeometryBVH } from '../core/GeometryBVH.js' */
 import { LineBasicMaterial, BufferAttribute, Box3, Group, MeshBasicMaterial, Object3D, BufferGeometry, Mesh, Matrix4, Vector3 } from 'three';
 import { arrayToBox } from '../utils/ArrayBoxUtilities.js';
-import { MeshBVH } from '../core/MeshBVH.js';
+import { MeshBVH } from '../core/MeshBVH';
 
 const boundingBox = /* @__PURE__ */ new Box3();
 const matrix = /* @__PURE__ */ new Matrix4();

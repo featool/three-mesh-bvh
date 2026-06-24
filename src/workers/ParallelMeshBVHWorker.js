@@ -1,6 +1,6 @@
 /** @import { BufferGeometry } from 'three' */
 import { Box3, BufferAttribute } from 'three';
-import { MeshBVH } from '../core/MeshBVH.js';
+import { MeshBVH } from '../core/MeshBVH';
 import { WorkerBase } from './utils/WorkerBase.js';
 import { convertToBufferType, isSharedArrayBufferSupported } from '../utils/BufferUtils.js';
 import { GenerateMeshBVHWorker } from './GenerateMeshBVHWorker.js';

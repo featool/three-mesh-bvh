@@ -1,13 +1,13 @@
 export * from './core/BVH.js';
-export * from './core/GeometryBVH.js';
-export * from './core/MeshBVH.js';
-export * from './core/LineBVH.js';
+export * from './core/GeometryBVH';
+export * from './core/MeshBVH';
+export * from './core/LineBVH';
 export * from './core/PointsBVH.js';
 export * from './core/ObjectBVH.js';
 export * from './core/SkinnedMeshBVH.js';
-export type { IntersectsTriangleCallback } from './core/MeshBVH.js';
+export type { IntersectsTriangleCallback } from './core/MeshBVH';
 export * from './objects/BVHHelper.js';
-export { CENTER, AVERAGE, SAH, NOT_INTERSECTED, INTERSECTED, CONTAINED, SKIP_GENERATION } from './core/Constants.js';
+export { CENTER, AVERAGE, SAH, NOT_INTERSECTED, INTERSECTED, CONTAINED, SKIP_GENERATION } from './core/Constants';
 export { getBVHExtremes, estimateMemoryInBytes, getJSONStructure, validateBounds } from './debug/Debug.js';
 export * from './utils/ExtensionUtilities.js';
 export { getTriangleHitPointInfo } from './utils/TriangleUtilities.js';

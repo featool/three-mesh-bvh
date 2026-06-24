@@ -1,7 +1,7 @@
 /** @import { StructTypeNode } from 'three/webgpu' */
 /** @import { BVHComputeData } from '../BVHComputeData.js' */
 import { Vector4 } from 'three';
-import { BYTES_PER_NODE, UINT32_PER_NODE, IS_LEAFNODE_FLAG } from '../../core/Constants.js';
+import { BYTES_PER_NODE, UINT32_PER_NODE, IS_LEAFNODE_FLAG } from '../../core/Constants';
 
 // scratch
 const _def = /* @__PURE__ */ new Vector4();

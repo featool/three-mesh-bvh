@@ -1,7 +1,7 @@
 /** @import { MeshBVH } from '../core/MeshBVH.js' */
 /** @import { BVH } from '../core/BVH.js' */
 import { Box3 } from 'three';
-import { PRIMITIVE_INTERSECT_COST, TRAVERSAL_COST } from '../core/Constants.js';
+import { PRIMITIVE_INTERSECT_COST, TRAVERSAL_COST } from '../core/Constants';
 import { arrayToBox } from '../utils/ArrayBoxUtilities.js';
 import { isSharedArrayBufferSupported } from '../utils/BufferUtils.js';
 

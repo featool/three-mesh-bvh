@@ -3,7 +3,7 @@ import { BufferStack } from '../utils/BufferStack.js';
 import { BOUNDING_DATA_INDEX, COUNT, IS_LEAF, LEFT_NODE, OFFSET, RIGHT_NODE } from '../utils/nodeBufferUtils.js';
 import { arrayToBox } from '../../utils/ArrayBoxUtilities.js';
 import { PrimitivePool } from '../../utils/PrimitivePool.js';
-import { BYTES_PER_NODE, UINT32_PER_NODE } from '../Constants.js';
+import { BYTES_PER_NODE, UINT32_PER_NODE } from '../Constants';
 
 const _bufferStack1 = /* @__PURE__ */ new BufferStack.constructor();
 const _bufferStack2 = /* @__PURE__ */ new BufferStack.constructor();

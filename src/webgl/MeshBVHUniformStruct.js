@@ -12,7 +12,7 @@ import {
 	FloatVertexAttributeTexture,
 	UIntVertexAttributeTexture,
 } from './VertexAttributeTexture.js';
-import { BYTES_PER_NODE, LEAFNODE_MASK_32 } from '../core/Constants.js';
+import { BYTES_PER_NODE, LEAFNODE_MASK_32 } from '../core/Constants';
 import {
 	BOUNDING_DATA_INDEX,
 	COUNT,

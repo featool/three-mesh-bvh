@@ -1,9 +1,9 @@
 import { MathUtils, BufferGeometry, BufferAttribute } from 'three';
 import { WorkerPool } from './utils/WorkerPool.js';
-import { BYTES_PER_NODE, DEFAULT_OPTIONS, SKIP_GENERATION } from '../core/Constants.js';
+import { BYTES_PER_NODE, DEFAULT_OPTIONS, SKIP_GENERATION } from '../core/Constants';
 import { buildTree } from '../core/build/buildTree.js';
 import { countNodes, populateBuffer } from '../core/build/buildUtils.js';
-import { MeshBVH } from '../core/MeshBVH.js';
+import { MeshBVH } from '../core/MeshBVH';
 import { getRootPrimitiveRanges } from '../core/build/geometryUtils.js';
 import { generateIndirectBuffer } from '../core/GeometryBVH.js';
 

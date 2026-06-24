@@ -1,8 +1,8 @@
 /** @import { IntersectsBoundsCallback, IntersectsRangeCallback, BoundsTraverseOrderCallback } from './BVH.js' */
 import { Vector3, Matrix4, Ray, Box3 } from 'three';
-import { INTERSECTED, NOT_INTERSECTED } from './Constants.js';
+import { INTERSECTED, NOT_INTERSECTED } from './Constants';
 import { PrimitivePool } from '../utils/PrimitivePool.js';
-import { GeometryBVH } from './GeometryBVH.js';
+import { GeometryBVH } from './GeometryBVH';
 
 const _inverseMatrix = /* @__PURE__ */ new Matrix4();
 const _ray = /* @__PURE__ */ new Ray();

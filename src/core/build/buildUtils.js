@@ -1,4 +1,4 @@
-import { BYTES_PER_NODE, IS_LEAFNODE_FLAG } from '../Constants.js';
+import { BYTES_PER_NODE, IS_LEAFNODE_FLAG } from '../Constants';
 
 let float32Array, uint32Array, uint16Array, uint8Array;
 const MAX_POINTER = Math.pow( 2, 32 );

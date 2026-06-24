@@ -1,9 +1,9 @@
 /** @import { SkinnedMesh } from 'three' */
 /** @import { IntersectsBoundsCallback, IntersectsRangeCallback, BoundsTraverseOrderCallback } from './BVH.js' */
 import { Vector3, Vector2, Ray, Matrix4, FrontSide, BackSide, Triangle, REVISION } from 'three';
-import { GeometryBVH } from './GeometryBVH.js';
+import { GeometryBVH } from './GeometryBVH';
 import { ExtendedTriangle } from '../math/ExtendedTriangle.js';
-import { INTERSECTED, NOT_INTERSECTED, SKIP_GENERATION } from './Constants.js';
+import { INTERSECTED, NOT_INTERSECTED, SKIP_GENERATION } from './Constants';
 
 const _v0 = /* @__PURE__ */ new Vector3();
 const _v1 = /* @__PURE__ */ new Vector3();

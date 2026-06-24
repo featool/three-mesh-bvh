@@ -1,5 +1,5 @@
 import { getLongestEdgeIndex, computeSurfaceArea, copyBounds, unionBounds, expandByPrimitiveBounds } from '../../utils/ArrayBoxUtilities.js';
-import { CENTER, AVERAGE, SAH, PRIMITIVE_INTERSECT_COST, TRAVERSAL_COST } from '../Constants.js';
+import { CENTER, AVERAGE, SAH, PRIMITIVE_INTERSECT_COST, TRAVERSAL_COST } from '../Constants';
 
 const BIN_COUNT = 32;
 const binsSort = ( a, b ) => a.candidate - b.candidate;

@@ -14,7 +14,7 @@ import {
 	Side,
 } from 'three';
 import { ExtendedTriangle } from '../math/ExtendedTriangle.js';
-import { SKIP_GENERATION, BYTES_PER_NODE, UINT32_PER_NODE, FLOAT32_EPSILON } from './Constants.js';
+import { SKIP_GENERATION, BYTES_PER_NODE, UINT32_PER_NODE, FLOAT32_EPSILON } from './Constants';
 import { OrientedBox } from '../math/OrientedBox.js';
 import { ExtendedTrianglePool } from '../utils/ExtendedTrianglePool.js';
 import { closestPointToPoint } from './cast/closestPointToPoint.js';

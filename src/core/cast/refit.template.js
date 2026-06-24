@@ -1,4 +1,4 @@
-import { BYTES_PER_NODE, UINT32_PER_NODE } from '../Constants.js';
+import { BYTES_PER_NODE, UINT32_PER_NODE } from '../Constants';
 import { COUNT, IS_LEAF, LEFT_NODE, OFFSET, RIGHT_NODE } from '../utils/nodeBufferUtils.js';
 
 export function refit/* @echo INDIRECT_STRING */( bvh, nodeIndices = null ) {
