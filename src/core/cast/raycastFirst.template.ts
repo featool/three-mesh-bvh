@@ -3,10 +3,18 @@ import { BufferStack } from '../utils/BufferStack.js';
 import { intersectsNodeBounds } from '../utils/intersectUtils.js';
 import { intersectClosestTri } from '../utils/iterationUtils.generated.js';
 import { intersectClosestTri_indirect } from '../utils/iterationUtils_indirect.generated.js';
+import type { BufferGeometry } from 'three';
 
 const _xyzFields = [ 'x', 'y', 'z' ];
 
-export function raycastFirst/* @echo INDIRECT_STRING */( bvh, root, materialOrSide, ray, near, far ) {
+export function raycastFirst/* @echo INDIRECT_STRING */(
+	bvh: { _roots: ArrayBuffer[]; geometry: BufferGeometry },
+	root: number,
+	materialOrSide: any,
+	ray: any,
+	near: number,
+	far: number,
+): any {
 
 	BufferStack.setBuffer( bvh._roots[ root ] );
 	const result = _raycastFirst( 0, bvh, materialOrSide, ray, near, far );
@@ -16,7 +24,14 @@ export function raycastFirst/* @echo INDIRECT_STRING */( bvh, root, materialOrSi
 
 }
 
-function _raycastFirst( nodeIndex32, bvh, materialOrSide, ray, near, far ) {
+function _raycastFirst(
+	nodeIndex32: number,
+	bvh: { _roots: ArrayBuffer[]; geometry: BufferGeometry },
+	materialOrSide: any,
+	ray: any,
+	near: number,
+	far: number,
+): any {
 
 	const { float32Array, uint16Array, uint32Array } = BufferStack;
 	let nodeIndex16 = nodeIndex32 * 2;
@@ -48,7 +63,7 @@ function _raycastFirst( nodeIndex32, bvh, materialOrSide, ray, near, far ) {
 		const leftToRight = rayDir >= 0;
 
 		// c1 is the child to check first
-		let c1, c2;
+		let c1: number, c2: number;
 		if ( leftToRight ) {
 
 			c1 = LEFT_NODE( nodeIndex32 );

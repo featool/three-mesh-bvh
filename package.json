@@ -17,9 +17,9 @@
   "types": "src/index.d.ts",
   "sideEffects": false,
   "scripts": {
-    "start": "concurrently \"rollup -w -c rollup-templating.config.js\" \"vite --config ./vite.config.js\"",
-    "build": "rollup -c rollup-templating.config.js && rollup -c",
-    "build-silent": "rollup -c rollup-templating.config.js --silent && rollup -c --silent",
+	"start": "concurrently \"rollup -w -c rollup.config.js\" \"vite --config ./vite.config.js\"",
+		"build": "node scripts/generate-templates.mjs && rollup -c",
+		"build-silent": "node scripts/generate-templates.mjs && rollup -c --silent",
     "build-examples": "npm run build && vite build --config ./vite.config.js && cp ./example/coi-serviceworker.js ./example/bundle/",
     "test": "npm run build-silent && vitest run",
     "lint": "eslint . && tsc --noEmit",

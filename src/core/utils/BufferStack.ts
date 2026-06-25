@@ -1,14 +1,18 @@
 class _BufferStack {
 
+	float32Array: Float32Array | null;
+	uint16Array: Uint16Array | null;
+	uint32Array: Uint32Array | null;
+
 	constructor() {
 
 		this.float32Array = null;
 		this.uint16Array = null;
 		this.uint32Array = null;
 
-		const stack = [];
-		let prevBuffer = null;
-		this.setBuffer = buffer => {
+		const stack: ArrayBuffer[] = [];
+		let prevBuffer: ArrayBuffer | null = null;
+		this.setBuffer = ( buffer: ArrayBuffer ) => {
 
 			if ( prevBuffer ) {
 
@@ -32,13 +36,18 @@ class _BufferStack {
 
 			if ( stack.length !== 0 ) {
 
-				this.setBuffer( stack.pop() );
+				this.setBuffer( stack.pop()! );
 
 			}
 
 		};
 
 	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	setBuffer( _buffer: ArrayBuffer ): void {}
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	clearBuffer(): void {}
 
 }
 

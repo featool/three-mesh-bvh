@@ -3,8 +3,17 @@ import { COUNT, OFFSET, LEFT_NODE, RIGHT_NODE, IS_LEAF } from '../utils/nodeBuff
 import { BufferStack } from '../utils/BufferStack.js';
 import { intersectTris } from '../utils/iterationUtils.generated.js';
 import { intersectTris_indirect } from '../utils/iterationUtils_indirect.generated.js';
+import type { BufferGeometry } from 'three';
 
-export function raycast/* @echo INDIRECT_STRING */( bvh, root, materialOrSide, ray, intersects, near, far ) {
+export function raycast/* @echo INDIRECT_STRING */(
+	bvh: { _roots: ArrayBuffer[]; geometry: BufferGeometry },
+	root: number,
+	materialOrSide: any,
+	ray: any,
+	intersects: any[],
+	near: number,
+	far: number,
+): void {
 
 	BufferStack.setBuffer( bvh._roots[ root ] );
 	_raycast( 0, bvh, materialOrSide, ray, intersects, near, far );
@@ -12,7 +21,15 @@ export function raycast/* @echo INDIRECT_STRING */( bvh, root, materialOrSide, r
 
 }
 
-function _raycast( nodeIndex32, bvh, materialOrSide, ray, intersects, near, far ) {
+function _raycast(
+	nodeIndex32: number,
+	bvh: { _roots: ArrayBuffer[]; geometry: BufferGeometry },
+	materialOrSide: any,
+	ray: any,
+	intersects: any[],
+	near: number,
+	far: number,
+): void {
 
 	const { float32Array, uint16Array, uint32Array } = BufferStack;
 	const nodeIndex16 = nodeIndex32 * 2;

@@ -1,5 +1,5 @@
 /* eslint-disable indent */
-import { Box3, Matrix4 } from 'three';
+import { Box3, Matrix4, BufferGeometry } from 'three';
 import { OrientedBox } from '../../math/OrientedBox.js';
 import { ExtendedTriangle } from '../../math/ExtendedTriangle.js';
 import { setTriangle } from '../../utils/TriangleUtilities.js';
@@ -16,7 +16,16 @@ const invertedMat = /* @__PURE__ */ new Matrix4();
 const obb = /* @__PURE__ */ new OrientedBox();
 const obb2 = /* @__PURE__ */ new OrientedBox();
 
-export function intersectsGeometry/* @echo INDIRECT_STRING */( bvh, root, otherGeometry, geometryToBvh ) {
+export function intersectsGeometry/* @echo INDIRECT_STRING */(
+	bvh: {
+		_roots: ArrayBuffer[];
+		geometry: BufferGeometry;
+		resolveTriangleIndex?: ( i: number ) => number;
+	},
+	root: number,
+	otherGeometry: BufferGeometry & { boundsTree?: any },
+	geometryToBvh: Matrix4,
+): boolean {
 
 	BufferStack.setBuffer( bvh._roots[ root ] );
 	const result = _intersectsGeometry( 0, bvh, otherGeometry, geometryToBvh );
@@ -26,7 +35,17 @@ export function intersectsGeometry/* @echo INDIRECT_STRING */( bvh, root, otherG
 
 }
 
-function _intersectsGeometry( nodeIndex32, bvh, otherGeometry, geometryToBvh, cachedObb = null ) {
+function _intersectsGeometry(
+	nodeIndex32: number,
+	bvh: {
+		_roots: ArrayBuffer[];
+		geometry: BufferGeometry;
+		resolveTriangleIndex?: ( i: number ) => number;
+	},
+	otherGeometry: BufferGeometry & { boundsTree?: any },
+	geometryToBvh: Matrix4,
+	cachedObb: OrientedBox | null = null,
+): boolean {
 
 	const { float32Array, uint16Array, uint32Array } = BufferStack;
 	let nodeIndex16 = nodeIndex32 * 2;
@@ -72,9 +91,9 @@ function _intersectsGeometry( nodeIndex32, bvh, otherGeometry, geometryToBvh, ca
 			// TODO: use a triangle iteration function here
 			const res = otherGeometry.boundsTree.shapecast( {
 
-				intersectsBounds: box => obb2.intersectsBox( box ),
+				intersectsBounds: ( box: Box3 ) => obb2.intersectsBox( box ),
 
-				intersectsTriangle: tri => {
+				intersectsTriangle: ( tri: ExtendedTriangle ) => {
 
 					tri.a.applyMatrix4( geometryToBvh );
 					tri.b.applyMatrix4( geometryToBvh );
@@ -86,7 +105,7 @@ function _intersectsGeometry( nodeIndex32, bvh, otherGeometry, geometryToBvh, ca
 					for ( let i = offset, l = count + offset; i < l; i ++ ) {
 
 						// this triangle needs to be transformed into the current BVH coordinate frame
-						setTriangle( triangle2, 3 * bvh.resolveTriangleIndex( i ), thisIndex, thisPos );
+						setTriangle( triangle2, 3 * bvh.resolveTriangleIndex!( i ), thisIndex, thisPos );
 						triangle2.needsUpdate = true;
 						if ( tri.intersectsTriangle( triangle2 ) ) {
 
@@ -131,7 +150,7 @@ function _intersectsGeometry( nodeIndex32, bvh, otherGeometry, geometryToBvh, ca
 			for ( let i = offset, l = count + offset; i < l; i ++ ) {
 
 				// this triangle needs to be transformed into the current BVH coordinate frame
-				const ti = bvh.resolveTriangleIndex( i );
+				const ti = bvh.resolveTriangleIndex!( i );
 				setTriangle( triangle, 3 * ti, thisIndex, thisPos );
 
 			/* @else */

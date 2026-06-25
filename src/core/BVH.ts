@@ -51,9 +51,9 @@ export interface ShapecastCallbacks {
 	intersectsRange?: IntersectsRangeCallback;
 
 	// Internal fields used by subclasses via super.shapecast()
-	intersectsPrimitive?: Function;
+	intersectsPrimitive?: ( ...args: any[] ) => boolean | void;
 	scratchPrimitive?: unknown;
-	iterate?: Function;
+	iterate?: ( ...args: any[] ) => boolean | void;
 
 	// Allow extra properties from subclass-specific callbacks (e.g. intersectsPoint, intersectsLine, etc.)
 	[ key: string ]: any;
@@ -77,7 +77,7 @@ type OffsetFloat32Array = Float32Array & { offset?: number };
  */
 export class BVH {
 
-	/** Root node buffers of the BVH tree. */
+	/** Root node buffers of the BVH tree. Set during init(). */
 	_roots: ArrayBuffer[];
 
 	/** Indirect primitive index buffer, or null if not in indirect mode. */
@@ -85,19 +85,22 @@ export class BVH {
 
 	constructor() {
 
-		this._roots = null!;
+		this._roots = null as unknown as ArrayBuffer[];
 		this._indirectBuffer = null;
 
 	}
 
-	init( options: Record<string, any> ): void {
+	init( options: Record<string, unknown> ): void {
 
-		options = {
+		const mergedOptions = {
 			...DEFAULT_OPTIONS,
 			...options,
 		};
 
-		buildPackedTree( this, options );
+		buildPackedTree(
+			this as unknown as Parameters<typeof buildPackedTree>[ 0 ],
+			mergedOptions as unknown as Parameters<typeof buildPackedTree>[ 1 ],
+		);
 
 	}
 
@@ -395,14 +398,14 @@ export class BVH {
 	shapecast( callbacks: ShapecastCallbacks ): boolean {
 
 		// TODO: can we get rid of "scratchPrimitive" and / or "iterate"? Or merge them somehow
-		let {
+		const {
 			boundsTraverseOrder,
 			intersectsBounds,
-			intersectsRange,
 			intersectsPrimitive,
 			scratchPrimitive,
 			iterate,
 		} = callbacks;
+		let { intersectsRange } = callbacks;
 
 		// wrap the intersectsRange function
 		if ( intersectsRange && intersectsPrimitive ) {
@@ -412,7 +415,7 @@ export class BVH {
 
 				if ( ! originalIntersectsRange( offset, count, contained, depth, nodeIndex ) ) {
 
-					return iterate!( offset, count, this, intersectsPrimitive, contained, depth, scratchPrimitive );
+					return iterate!( offset, count, this, intersectsPrimitive, contained, depth, scratchPrimitive ) || false;
 
 				}
 
@@ -426,7 +429,7 @@ export class BVH {
 
 				intersectsRange = ( offset, count, contained, depth ) => {
 
-					return iterate!( offset, count, this, intersectsPrimitive, contained, depth, scratchPrimitive );
+					return iterate!( offset, count, this, intersectsPrimitive, contained, depth, scratchPrimitive ) || false;
 
 				};
 
@@ -477,7 +480,7 @@ export class BVH {
 	 */
 	bvhcast( otherBvh: BVH, matrixToLocal: Matrix4, callbacks: BvhcastCallbacks ): boolean {
 
-		let { intersectsRanges } = callbacks;
+		const { intersectsRanges } = callbacks;
 		return bvhcast( this, otherBvh, matrixToLocal, intersectsRanges );
 
 	}

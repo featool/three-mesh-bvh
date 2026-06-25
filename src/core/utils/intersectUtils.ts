@@ -1,10 +1,11 @@
+import { Ray } from 'three';
 
-export function intersectsNodeBounds( nodeIndex32, array, ray, near, far ) {
+export function intersectsNodeBounds( nodeIndex32: number, array: Float32Array, ray: Ray, near: number, far: number ): boolean {
 
 	// This function performs intersection tests similar to Ray.intersectBox in three.js,
 	// with the difference that the box values are read from an array to improve performance.
 
-	let tmin, tmax, tymin, tymax, tzmin, tzmax;
+	let tmin: number, tmax: number, tymin: number, tymax: number, tzmin: number, tzmax: number;
 
 	const invdirx = 1 / ray.direction.x,
 		invdiry = 1 / ray.direction.y,
@@ -14,14 +15,14 @@ export function intersectsNodeBounds( nodeIndex32, array, ray, near, far ) {
 	const oy = ray.origin.y;
 	const oz = ray.origin.z;
 
-	let minx = array[ nodeIndex32 ];
-	let maxx = array[ nodeIndex32 + 3 ];
+	const minx = array[ nodeIndex32 ];
+	const maxx = array[ nodeIndex32 + 3 ];
 
-	let miny = array[ nodeIndex32 + 1 ];
-	let maxy = array[ nodeIndex32 + 3 + 1 ];
+	const miny = array[ nodeIndex32 + 1 ];
+	const maxy = array[ nodeIndex32 + 3 + 1 ];
 
-	let minz = array[ nodeIndex32 + 2 ];
-	let maxz = array[ nodeIndex32 + 3 + 2 ];
+	const minz = array[ nodeIndex32 + 2 ];
+	const maxz = array[ nodeIndex32 + 3 + 2 ];
 
 	if ( invdirx >= 0 ) {
 

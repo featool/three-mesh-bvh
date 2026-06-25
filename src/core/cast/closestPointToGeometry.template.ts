@@ -1,4 +1,4 @@
-import { Vector3, Matrix4 } from 'three';
+import { Vector3, Matrix4, BufferGeometry } from 'three';
 import { OrientedBox } from '../../math/OrientedBox.js';
 import { setTriangle } from '../../utils/TriangleUtilities.js';
 import { getTriCount } from '../build/geometryUtils.js';
@@ -13,14 +13,19 @@ const temp3 = /* @__PURE__ */ new Vector3();
 const temp4 = /* @__PURE__ */ new Vector3();
 
 export function closestPointToGeometry/* @echo INDIRECT_STRING */(
-	bvh,
-	otherGeometry,
-	geometryToBvh,
-	target1 = { },
-	target2 = { },
-	minThreshold = 0,
-	maxThreshold = Infinity,
-) {
+	bvh: {
+		geometry: BufferGeometry;
+		shapecast: ( callbacks: any ) => any;
+		resolveTriangleIndex?: ( i: number ) => number;
+		_indirectBuffer?: Uint32Array | Uint16Array | null;
+	},
+	otherGeometry: BufferGeometry & { boundsTree?: any },
+	geometryToBvh: Matrix4,
+	target1: any = { },
+	target2: any = { },
+	minThreshold: number = 0,
+	maxThreshold: number = Infinity,
+): any {
 
 	if ( ! otherGeometry.boundingBox ) {
 
@@ -52,20 +57,20 @@ export function closestPointToGeometry/* @echo INDIRECT_STRING */(
 	}
 
 	let closestDistance = Infinity;
-	let closestDistanceTriIndex = null;
-	let closestDistanceOtherTriIndex = null;
+	let closestDistanceTriIndex: number | null = null;
+	let closestDistanceOtherTriIndex: number | null = null;
 	tempMatrix.copy( geometryToBvh ).invert();
 	obb2.matrix.copy( tempMatrix );
 	bvh.shapecast(
 		{
 
-			boundsTraverseOrder: box => {
+			boundsTraverseOrder: ( box: any ) => {
 
 				return obb.distanceToBox( box );
 
 			},
 
-			intersectsBounds: ( box, isLeaf, score ) => {
+			intersectsBounds: ( box: any, isLeaf: boolean, score: number ) => {
 
 				if ( score < closestDistance && score < maxThreshold ) {
 
@@ -87,7 +92,7 @@ export function closestPointToGeometry/* @echo INDIRECT_STRING */(
 
 			},
 
-			intersectsRange: ( offset, count ) => {
+			intersectsRange: ( offset: number, count: number ) => {
 
 				if ( otherGeometry.boundsTree ) {
 
@@ -95,19 +100,19 @@ export function closestPointToGeometry/* @echo INDIRECT_STRING */(
 					// the closest bounds in the other geometry to check.
 					const otherBvh = otherGeometry.boundsTree;
 					return otherBvh.shapecast( {
-						boundsTraverseOrder: box => {
+						boundsTraverseOrder: ( box: any ) => {
 
 							return obb2.distanceToBox( box );
 
 						},
 
-						intersectsBounds: ( box, isLeaf, score ) => {
+						intersectsBounds: ( box: any, isLeaf: boolean, score: number ) => {
 
 							return score < closestDistance && score < maxThreshold;
 
 						},
 
-						intersectsRange: ( otherOffset, otherCount ) => {
+						intersectsRange: ( otherOffset: number, otherCount: number ) => {
 
 							for ( let i2 = otherOffset, l2 = otherOffset + otherCount; i2 < l2; i2 ++ ) {
 
@@ -130,7 +135,7 @@ export function closestPointToGeometry/* @echo INDIRECT_STRING */(
 
 									/* @if INDIRECT */
 
-									const ti = bvh.resolveTriangleIndex( i );
+									const ti = bvh.resolveTriangleIndex!( i );
 									setTriangle( triangle, 3 * ti, index, pos );
 
 									/* @else */
@@ -187,7 +192,7 @@ export function closestPointToGeometry/* @echo INDIRECT_STRING */(
 
 							/* @if INDIRECT */
 
-							const ti = bvh.resolveTriangleIndex( i );
+							const ti = bvh.resolveTriangleIndex!( i );
 							setTriangle( triangle, 3 * ti, index, pos );
 
 							/* @else */
@@ -230,7 +235,6 @@ export function closestPointToGeometry/* @echo INDIRECT_STRING */(
 			},
 
 		}
-
 	);
 
 	ExtendedTrianglePool.releasePrimitive( triangle );

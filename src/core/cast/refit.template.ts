@@ -1,7 +1,15 @@
 import { BYTES_PER_NODE, UINT32_PER_NODE } from '../Constants';
 import { COUNT, IS_LEAF, LEFT_NODE, OFFSET, RIGHT_NODE } from '../utils/nodeBufferUtils.js';
+import type { BufferAttribute, BufferGeometry } from 'three';
 
-export function refit/* @echo INDIRECT_STRING */( bvh, nodeIndices = null ) {
+export function refit/* @echo INDIRECT_STRING */(
+	bvh: {
+		_roots: ArrayBuffer[];
+		geometry: BufferGeometry;
+		resolveTriangleIndex?: ( i: number ) => number;
+	},
+	nodeIndices: Set<number> | Array<number> | null = null,
+): void {
 
 	if ( nodeIndices && Array.isArray( nodeIndices ) ) {
 
@@ -10,10 +18,10 @@ export function refit/* @echo INDIRECT_STRING */( bvh, nodeIndices = null ) {
 	}
 
 	const geometry = bvh.geometry;
-	const indexArr = geometry.index ? geometry.index.array : null;
-	const posAttr = geometry.attributes.position;
+	const indexArr: Uint32Array | Uint16Array | null = geometry.index ? ( geometry.index.array as Uint32Array | Uint16Array ) : null;
+	const posAttr = geometry.attributes.position as BufferAttribute;
 
-	let buffer, uint32Array, uint16Array, float32Array;
+	let buffer: ArrayBuffer, uint32Array: Uint32Array, uint16Array: Uint16Array, float32Array: Float32Array;
 	let byteOffset = 0;
 	const roots = bvh._roots;
 	for ( let i = 0, l = roots.length; i < l; i ++ ) {
@@ -28,7 +36,7 @@ export function refit/* @echo INDIRECT_STRING */( bvh, nodeIndices = null ) {
 
 	}
 
-	function _traverse( nodeIndex32, byteOffset, force = false ) {
+	function _traverse( nodeIndex32: number, byteOffset: number, force: boolean = false ): boolean {
 
 		const nodeIndex16 = nodeIndex32 * 2;
 		if ( IS_LEAF( nodeIndex16, uint16Array ) ) {
@@ -47,7 +55,7 @@ export function refit/* @echo INDIRECT_STRING */( bvh, nodeIndices = null ) {
 
 			for ( let i = offset, l = offset + count; i < l; i ++ ) {
 
-				const t = 3 * bvh.resolveTriangleIndex( i );
+				const t = 3 * bvh.resolveTriangleIndex!( i );
 				for ( let j = 0; j < 3; j ++ ) {
 
 					let index = t + j;
@@ -75,7 +83,7 @@ export function refit/* @echo INDIRECT_STRING */( bvh, nodeIndices = null ) {
 
 			for ( let i = 3 * offset, l = 3 * ( offset + count ); i < l; i ++ ) {
 
-				let index = indexArr[ i ];
+				let index = indexArr![ i ];
 				const x = posAttr.getX( index );
 				const y = posAttr.getY( index );
 				const z = posAttr.getZ( index );

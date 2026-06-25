@@ -1,14 +1,25 @@
 import { intersectTri } from '../../utils/ThreeRayIntersectUtilities.js';
 import { setTriangle } from '../../utils/TriangleUtilities.js';
+import type { BufferAttribute, BufferGeometry } from 'three';
+import type { ExtendedTriangle } from '../../math/ExtendedTriangle.js';
 
-export function intersectTris/* @echo INDIRECT_STRING */( bvh, materialOrSide, ray, offset, count, intersections, near, far ) {
+export function intersectTris/* @echo INDIRECT_STRING */(
+	bvh: { geometry: BufferGeometry; _indirectBuffer: Uint32Array | Uint16Array | null },
+	materialOrSide: any,
+	ray: any,
+	offset: number,
+	count: number,
+	intersections: any[] | null,
+	near: number,
+	far: number,
+): void {
 
 	const { geometry, _indirectBuffer } = bvh;
 	for ( let i = offset, end = offset + count; i < end; i ++ ) {
 
 		/* @if INDIRECT */
 
-		let vi = _indirectBuffer ? _indirectBuffer[ i ] : i;
+		const vi = _indirectBuffer ? _indirectBuffer[ i ] : i;
 		intersectTri( geometry, materialOrSide, ray, vi, intersections, near, far );
 
 		/* @else */
@@ -21,7 +32,15 @@ export function intersectTris/* @echo INDIRECT_STRING */( bvh, materialOrSide, r
 
 }
 
-export function intersectClosestTri/* @echo INDIRECT_STRING */( bvh, materialOrSide, ray, offset, count, near, far ) {
+export function intersectClosestTri/* @echo INDIRECT_STRING */(
+	bvh: { geometry: BufferGeometry; _indirectBuffer: Uint32Array | Uint16Array | null },
+	materialOrSide: any,
+	ray: any,
+	offset: number,
+	count: number,
+	near: number,
+	far: number,
+): any {
 
 	const { geometry, _indirectBuffer } = bvh;
 	let dist = Infinity;
@@ -53,24 +72,27 @@ export function intersectClosestTri/* @echo INDIRECT_STRING */( bvh, materialOrS
 }
 
 export function iterateOverTriangles/* @echo INDIRECT_STRING */(
-	offset,
-	count,
-	bvh,
-	intersectsTriangleFunc,
-	contained,
-	depth,
-	triangle
-) {
+	offset: number,
+	count: number,
+	bvh: {
+		geometry: BufferGeometry;
+		resolveTriangleIndex?: ( i: number ) => number;
+	},
+	intersectsTriangleFunc: ( triangle: ExtendedTriangle, index: number, contained: boolean, depth: number ) => boolean | void,
+	contained: boolean,
+	depth: number,
+	triangle: ExtendedTriangle,
+): boolean {
 
 	const { geometry } = bvh;
 	const { index } = geometry;
-	const pos = geometry.attributes.position;
+	const pos = geometry.attributes.position as BufferAttribute;
 	for ( let i = offset, l = count + offset; i < l; i ++ ) {
 
-		let tri;
+		let tri: number;
 		/* @if INDIRECT */
 
-		tri = bvh.resolveTriangleIndex( i );
+		tri = bvh.resolveTriangleIndex!( i );
 
 		/* @else */
 
