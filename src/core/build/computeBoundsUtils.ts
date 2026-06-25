@@ -1,7 +1,13 @@
 // computes the union of the bounds of all of the given primitives and puts the resulting box in "target".
 // A bounding box is computed for the centroids of the primitives, as well, and placed in "centroidTarget".
 // These are computed together to avoid redundant accesses to bounds array.
-export function getBounds( primitiveBounds, offset, count, target, centroidTarget ) {
+export function getBounds(
+	primitiveBounds: Float32Array & { offset?: number },
+	offset: number,
+	count: number,
+	target: Float32Array,
+	centroidTarget: Float32Array,
+): void {
 
 	let minx = Infinity;
 	let miny = Infinity;

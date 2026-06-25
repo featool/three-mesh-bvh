@@ -1,23 +1,27 @@
 import { BYTES_PER_NODE, IS_LEAFNODE_FLAG } from '../Constants';
+import { BVHNode } from '../BVHNode';
 
-let float32Array, uint32Array, uint16Array, uint8Array;
+let float32Array: Float32Array;
+let uint32Array: Uint32Array;
+let uint16Array: Uint16Array;
+let uint8Array: Uint8Array;
 const MAX_POINTER = Math.pow( 2, 32 );
 
-export function countNodes( node ) {
+export function countNodes( node: BVHNode ): number {
 
-	if ( 'count' in node ) {
+	if ( node.count !== undefined ) {
 
 		return 1;
 
 	} else {
 
-		return 1 + countNodes( node.left ) + countNodes( node.right );
+		return 1 + countNodes( node.left! ) + countNodes( node.right! );
 
 	}
 
 }
 
-export function populateBuffer( byteOffset, node, buffer ) {
+export function populateBuffer( byteOffset: number, node: BVHNode, buffer: ArrayBuffer ): number {
 
 	float32Array = new Float32Array( buffer );
 	uint32Array = new Uint32Array( buffer );
@@ -32,11 +36,11 @@ export function populateBuffer( byteOffset, node, buffer ) {
 // boundingData  				: 6 float32
 // right / offset 				: 1 uint32
 // splitAxis / isLeaf + count 	: 1 uint32 / 2 uint16
-function _populateBuffer( byteOffset, node ) {
+function _populateBuffer( byteOffset: number, node: BVHNode ): number {
 
 	const node32Index = byteOffset / 4;
 	const node16Index = byteOffset / 2;
-	const isLeaf = 'count' in node;
+	const isLeaf = node.count !== undefined;
 	const boundingData = node.boundingData;
 	for ( let i = 0; i < 6; i ++ ) {
 
@@ -53,8 +57,8 @@ function _populateBuffer( byteOffset, node ) {
 
 		} else {
 
-			uint32Array[ node32Index + 6 ] = node.offset;
-			uint16Array[ node16Index + 14 ] = node.count;
+			uint32Array[ node32Index + 6 ] = node.offset!;
+			uint16Array[ node16Index + 14 ] = node.count!;
 			uint16Array[ node16Index + 15 ] = IS_LEAFNODE_FLAG;
 			return byteOffset + BYTES_PER_NODE;
 
@@ -66,7 +70,7 @@ function _populateBuffer( byteOffset, node ) {
 
 		// fill in the left node contents
 		const leftByteOffset = byteOffset + BYTES_PER_NODE;
-		let rightByteOffset = _populateBuffer( leftByteOffset, left );
+		let rightByteOffset = _populateBuffer( leftByteOffset, left! );
 
 		// calculate relative offset from parent to right child
 		const currentNodeIndex = byteOffset / BYTES_PER_NODE;
@@ -82,10 +86,10 @@ function _populateBuffer( byteOffset, node ) {
 
 		// fill in the right node contents (store as relative offset)
 		uint32Array[ node32Index + 6 ] = relativeRightIndex;
-		uint32Array[ node32Index + 7 ] = splitAxis;
+		uint32Array[ node32Index + 7 ] = splitAxis!;
 
 		// return the next available buffer pointer
-		return _populateBuffer( rightByteOffset, right );
+		return _populateBuffer( rightByteOffset, right! );
 
 	}
 

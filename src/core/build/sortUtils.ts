@@ -1,7 +1,14 @@
 // reorders the partition buffer such that for `count` elements after `offset`, elements on the left side of the split
 // will be on the left and elements on the right side of the split will be on the right. returns the index
 // of the first element on the right side, or offset + count if there are no elements on the right side.
-export function partition( buffer, stride, primitiveBounds, offset, count, split ) {
+export function partition(
+	buffer: Uint32Array | Uint16Array,
+	stride: number,
+	primitiveBounds: Float32Array & { offset?: number },
+	offset: number,
+	count: number,
+	split: { axis: number; pos: number },
+): number {
 
 	let left = offset;
 	let right = offset + count - 1;
@@ -31,7 +38,7 @@ export function partition( buffer, stride, primitiveBounds, offset, count, split
 			// left and right; that's the elements in the partition buffer and the bounds
 			for ( let i = 0; i < stride; i ++ ) {
 
-				let t0 = buffer[ left * stride + i ];
+				const t0 = buffer[ left * stride + i ];
 				buffer[ left * stride + i ] = buffer[ right * stride + i ];
 				buffer[ right * stride + i ] = t0;
 

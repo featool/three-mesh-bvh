@@ -2,8 +2,17 @@ import { getLongestEdgeIndex, computeSurfaceArea, copyBounds, unionBounds, expan
 import { CENTER, AVERAGE, SAH, PRIMITIVE_INTERSECT_COST, TRAVERSAL_COST } from '../Constants';
 
 const BIN_COUNT = 32;
-const binsSort = ( a, b ) => a.candidate - b.candidate;
-const sahBins = /* @__PURE__ */ new Array( BIN_COUNT ).fill().map( () => {
+const binsSort = ( a: SahBin, b: SahBin ) => a.candidate - b.candidate;
+
+interface SahBin {
+	count: number;
+	bounds: Float32Array;
+	rightCacheBounds: Float32Array;
+	leftCacheBounds: Float32Array;
+	candidate: number;
+}
+
+const sahBins: SahBin[] = /* @__PURE__ */ new Array( BIN_COUNT ).fill().map( () => {
 
 	return {
 
@@ -18,7 +27,14 @@ const sahBins = /* @__PURE__ */ new Array( BIN_COUNT ).fill().map( () => {
 } );
 const leftBounds = /* @__PURE__ */ new Float32Array( 6 );
 
-export function getOptimalSplit( nodeBoundingData, centroidBoundingData, primitiveBounds, offset, count, strategy ) {
+export function getOptimalSplit(
+	nodeBoundingData: Float32Array,
+	centroidBoundingData: Float32Array,
+	primitiveBounds: Float32Array & { offset?: number },
+	offset: number,
+	count: number,
+	strategy: number,
+): { axis: number; pos: number } {
 
 	let axis = - 1;
 	let pos = 0;
@@ -294,13 +310,13 @@ export function getOptimalSplit( nodeBoundingData, centroidBoundingData, primiti
 }
 
 // returns the average coordinate on the specified axis of all the provided primitives
-function getAverage( primitiveBounds, offset, count, axis ) {
+function getAverage( primitiveBounds: Float32Array & { offset?: number }, offset: number, count: number, axis: number ): number {
 
 	let avg = 0;
 	const boundsOffset = primitiveBounds.offset;
 	for ( let i = offset, end = offset + count; i < end; i ++ ) {
 
-		avg += primitiveBounds[ ( i - boundsOffset ) * 6 + axis * 2 ];
+		avg += primitiveBounds[ ( i - boundsOffset! ) * 6 + axis * 2 ];
 
 	}
 

@@ -1,18 +1,18 @@
-import { BufferAttribute } from 'three';
+import { BufferAttribute, BufferGeometry } from 'three';
 
-export function getVertexCount( geo ) {
+export function getVertexCount( geo: BufferGeometry ): number {
 
 	return geo.index ? geo.index.count : geo.attributes.position.count;
 
 }
 
-export function getTriCount( geo ) {
+export function getTriCount( geo: BufferGeometry ): number {
 
 	return getVertexCount( geo ) / 3;
 
 }
 
-export function getIndexArray( vertexCount, BufferConstructor = ArrayBuffer ) {
+export function getIndexArray( vertexCount: number, BufferConstructor: { new( byteLength: number ): ArrayBuffer } = ArrayBuffer ): Uint32Array | Uint16Array {
 
 	if ( vertexCount > 65535 ) {
 
@@ -27,7 +27,7 @@ export function getIndexArray( vertexCount, BufferConstructor = ArrayBuffer ) {
 }
 
 // ensures that an index is present on the geometry
-export function ensureIndex( geo, options ) {
+export function ensureIndex( geo: BufferGeometry, options: { useSharedArrayBuffer?: boolean } ): void {
 
 	if ( ! geo.index ) {
 
@@ -57,12 +57,12 @@ export function ensureIndex( geo, options ) {
 //                      g1 = [16, 40]           g2 = [41, 60]
 //
 // we would need four BVH roots: [0, 15], [16, 20], [21, 40], [41, 60].
-function getFullPrimitiveRange( geo, range, stride ) {
+function getFullPrimitiveRange( geo: BufferGeometry, range: { start: number; count: number } | null | undefined, stride: number | null ): { offset: number; count: number } {
 
-	const primitiveCount = getVertexCount( geo ) / stride;
+	const primitiveCount = getVertexCount( geo ) / stride!;
 	const drawRange = range ? range : geo.drawRange;
-	const start = drawRange.start / stride;
-	const end = ( drawRange.start + drawRange.count ) / stride;
+	const start = drawRange.start / stride!;
+	const end = ( drawRange.start + drawRange.count ) / stride!;
 
 	const offset = Math.max( 0, start );
 	const count = Math.min( primitiveCount, end ) - offset;
@@ -73,18 +73,22 @@ function getFullPrimitiveRange( geo, range, stride ) {
 
 }
 
-function getPrimitiveGroupRanges( geo, stride ) {
+function getPrimitiveGroupRanges( geo: BufferGeometry, stride: number | null ): Array<{ offset: number; count: number }> {
 
 	return geo.groups.map( group => ( {
-		offset: group.start / stride,
-		count: group.count / stride,
-	} ));
+		offset: group.start / stride!,
+		count: group.count / stride!,
+	} ) );
 
 }
 
 // Function that extracts a set of mutually exclusive ranges representing the primitives being
 // drawn as determined by the geometry groups, draw range, and user specified range
-export function getRootPrimitiveRanges( geo, range, stride ) {
+export function getRootPrimitiveRanges(
+	geo: BufferGeometry,
+	range: { start: number; count: number } | null | undefined,
+	stride: number | null,
+): Array<{ offset: number; count: number }> {
 
 	const drawRange = getFullPrimitiveRange( geo, range, stride );
 	const primitiveRanges = getPrimitiveGroupRanges( geo, stride );
@@ -94,13 +98,13 @@ export function getRootPrimitiveRanges( geo, range, stride ) {
 
 	}
 
-	const ranges = [];
+	const ranges: Array<{ offset: number; count: number }> = [];
 	const drawRangeStart = drawRange.offset;
 	const drawRangeEnd = drawRange.offset + drawRange.count;
 
 	// Create events for group boundaries
-	const primitiveCount = getVertexCount( geo ) / stride;
-	const events = [];
+	const primitiveCount = getVertexCount( geo ) / stride!;
+	const events: Array<{ pos: number; isStart: boolean }> = [];
 	for ( const group of primitiveRanges ) {
 
 		// Account for cases where group size is set to Infinity
@@ -128,7 +132,7 @@ export function getRootPrimitiveRanges( geo, range, stride ) {
 
 		} else {
 
-			return a.type === 'end' ? - 1 : 1;
+			return a.isStart ? 1 : - 1;
 
 		}
 
@@ -136,15 +140,15 @@ export function getRootPrimitiveRanges( geo, range, stride ) {
 
 	// sweep through events and create ranges where activeGroups > 0
 	let activeGroups = 0;
-	let lastPos = null;
+	let lastPos: number | null = null;
 	for ( const event of events ) {
 
 		const newPos = event.pos;
 		if ( activeGroups !== 0 && newPos !== lastPos ) {
 
 			ranges.push( {
-				offset: lastPos,
-				count: newPos - lastPos,
+				offset: lastPos!,
+				count: newPos - lastPos!,
 			} );
 
 		}
