@@ -10,11 +10,10 @@ import {
 	Object3D,
 	Raycaster,
 	Intersection,
-	Material,
 	InstancedMesh,
 	BatchedMesh,
 } from 'three';
-import { BVH } from './BVH.js';
+import { BVH, ShapecastCallbacks } from './BVH';
 import { INTERSECTED, NOT_INTERSECTED, BVHOptions } from './Constants';
 
 const _geometry = /* @__PURE__ */ new BufferGeometry();
@@ -84,7 +83,7 @@ export interface ObjectBVHShapecastCallbacks {
 		contained: boolean,
 		depth: number,
 		nodeIndex: number,
-		box: Box3,
+		box?: Box3,
 	) => boolean;
 
 	intersectsObject?: IntersectsObjectCallback;
@@ -230,15 +229,15 @@ export class ObjectBVH extends BVH {
 	 * @param {ObjectBVHShapecastCallbacks} callbacks - The shapecast callbacks.
 	 * @returns {boolean} Whether an intersection was found.
 	 */
-	shapecast(callbacks: ObjectBVHShapecastCallbacks): boolean {
+	shapecast( callbacks: ObjectBVHShapecastCallbacks ): boolean {
 
-		return super.shapecast({
+		return super.shapecast( {
 			...callbacks,
 
 			intersectsPrimitive: callbacks.intersectsObject,
 			scratchPrimitive: null,
 			iterate: iterateOverObjects,
-		});
+		} as ShapecastCallbacks );
 
 	}
 

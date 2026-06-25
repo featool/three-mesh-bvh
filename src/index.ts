@@ -1,10 +1,10 @@
-export * from './core/BVH.js';
+export * from './core/BVH';
 export * from './core/GeometryBVH';
 export * from './core/MeshBVH';
 export * from './core/LineBVH';
 export * from './core/PointsBVH';
 export * from './core/ObjectBVH';
-export * from './core/SkinnedMeshBVH.js';
+export * from './core/SkinnedMeshBVH';
 export type { IntersectsTriangleCallback } from './core/MeshBVH';
 export * from './objects/BVHHelper.js';
 export { CENTER, AVERAGE, SAH, NOT_INTERSECTED, INTERSECTED, CONTAINED, SKIP_GENERATION } from './core/Constants';

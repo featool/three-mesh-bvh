@@ -2,7 +2,7 @@ import { Box3, BufferGeometry, Object3D, Raycaster, Intersection } from 'three';
 import { SKIP_GENERATION, DEFAULT_OPTIONS } from './Constants';
 import { isSharedArrayBufferSupported } from '../utils/BufferUtils.js';
 import { ensureIndex, getRootPrimitiveRanges } from './build/geometryUtils.js';
-import { BVH } from './BVH.js';
+import { BVH } from './BVH';
 
 /** Represents a contiguous range of primitives in a geometry buffer. */
 export interface PrimitiveRange {
@@ -175,21 +175,27 @@ export class GeometryBVH extends BVH {
 		// build the BVH unless we're deserializing
 		if ( ! ( resolvedOptions as unknown as Record<symbol, unknown> )[ SKIP_GENERATION ] ) {
 
-			this.init( resolvedOptions );
+			this.init( resolvedOptions as unknown as Record<string, unknown> );
 
 		}
 
 	}
 
-	init( options: BuildOptions ): void {
+	init( options: Record<string, unknown> ): void {
 
 		const { geometry, primitiveStride } = this;
+		const opts = options as {
+			indirect?: boolean;
+			range?: { start: number; count: number } | null;
+			useSharedArrayBuffer?: boolean;
+			setBoundingBox?: boolean;
+		};
 
-		if ( options.indirect ) {
+		if ( opts.indirect ) {
 
 			// construct a buffer that indirectly sorts the triangles used for the BVH
-			const ranges = getRootPrimitiveRanges( geometry, options.range, primitiveStride ) as PrimitiveRange[];
-			const indirectBuffer = generateIndirectBuffer( ranges, options.useSharedArrayBuffer );
+			const ranges = getRootPrimitiveRanges( geometry, opts.range, primitiveStride ) as PrimitiveRange[];
+			const indirectBuffer = generateIndirectBuffer( ranges, opts.useSharedArrayBuffer! );
 			this._indirectBuffer = indirectBuffer;
 
 		} else {
@@ -200,7 +206,7 @@ export class GeometryBVH extends BVH {
 
 		super.init( options );
 
-		if ( ! geometry.boundingBox && options.setBoundingBox ) {
+		if ( ! geometry.boundingBox && opts.setBoundingBox ) {
 
 			geometry.boundingBox = this.getBoundingBox( new Box3() );
 

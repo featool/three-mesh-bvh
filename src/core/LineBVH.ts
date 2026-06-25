@@ -38,7 +38,7 @@ export interface LineSegmentsBVHShapecastCallbacks {
 		contained: boolean,
 		depth: number,
 		nodeIndex: number,
-		box: Box3,
+		box?: Box3,
 	) => boolean;
 
 	intersectsLine?: IntersectsLineCallback;

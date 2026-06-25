@@ -1,5 +1,4 @@
-/** @import { Matrix4 } from 'three' */
-import { Box3 } from 'three';
+import { Box3, Matrix4 } from 'three';
 import { BYTES_PER_NODE, UINT32_PER_NODE, DEFAULT_OPTIONS, FLOAT32_EPSILON } from './Constants';
 import { arrayToBox } from '../utils/ArrayBoxUtilities.js';
 import { IS_LEAF, LEFT_NODE, RIGHT_NODE, SPLIT_AXIS, COUNT, OFFSET } from './utils/nodeBufferUtils.js';
@@ -10,45 +9,66 @@ import { bvhcast } from './cast/bvhcast.js';
 const _tempBox = /* @__PURE__ */ new Box3();
 const _tempBuffer = /* @__PURE__ */ new Float32Array( 6 );
 
-/**
- * @callback BoundsTraverseOrderCallback
- * @param {Box3} box
- * @returns {number}
- */
+/** Callback for ordering child traversal during `shapecast`. */
+export type BoundsTraverseOrderCallback = ( box: Box3 ) => number;
 
-/**
- * @callback IntersectsBoundsCallback
- * @param {Box3} box
- * @param {boolean} isLeaf
- * @param {number|undefined} score
- * @param {number} depth
- * @param {number} nodeIndex
- * @returns {number|boolean}
- */
+/** Callback for testing shape intersection against a BVH node bounds. */
+export type IntersectsBoundsCallback = (
+	box: Box3,
+	isLeaf: boolean,
+	score: number | undefined,
+	depth: number,
+	nodeIndex: number,
+) => number | boolean;
 
-/**
- * @callback IntersectsRangeCallback
- * @param {number} offset
- * @param {number} count
- * @param {boolean} contained
- * @param {number} depth
- * @param {number} nodeIndex
- * @param {Box3} box
- * @returns {boolean}
- */
+/** Callback for testing intersection against a range of primitives. */
+export type IntersectsRangeCallback = (
+	offset: number,
+	count: number,
+	contained: boolean,
+	depth: number,
+	nodeIndex: number,
+	box?: Box3,
+) => boolean;
 
-/**
- * @callback IntersectsRangesCallback
- * @param {number} offset1
- * @param {number} count1
- * @param {number} offset2
- * @param {number} count2
- * @param {number} depth1
- * @param {number} nodeIndex1
- * @param {number} depth2
- * @param {number} nodeIndex2
- * @returns {boolean}
- */
+/** Callback for testing intersection between two BVH's primitive ranges. */
+export type IntersectsRangesCallback = (
+	offset1: number,
+	count1: number,
+	offset2: number,
+	count2: number,
+	depth1: number,
+	nodeIndex1: number,
+	depth2: number,
+	nodeIndex2: number,
+) => boolean;
+
+/** Callbacks accepted by {@link BVH.shapecast}. */
+export interface ShapecastCallbacks {
+
+	intersectsBounds: IntersectsBoundsCallback;
+	boundsTraverseOrder?: BoundsTraverseOrderCallback;
+	intersectsRange?: IntersectsRangeCallback;
+
+	// Internal fields used by subclasses via super.shapecast()
+	intersectsPrimitive?: Function;
+	scratchPrimitive?: unknown;
+	iterate?: Function;
+
+	// Allow extra properties from subclass-specific callbacks (e.g. intersectsPoint, intersectsLine, etc.)
+	[ key: string ]: any;
+
+}
+
+/** Callbacks accepted by {@link BVH.bvhcast}. */
+export interface BvhcastCallbacks {
+
+	intersectsRanges: IntersectsRangesCallback;
+
+}
+
+// Internal: a Float32Array carrying an `offset` field used by the build/cast helpers.
+type OffsetFloat32Array = Float32Array & { offset?: number };
 
 /**
  * Abstract base class for BVH implementations. Provides core tree traversal and spatial query
@@ -57,14 +77,20 @@ const _tempBuffer = /* @__PURE__ */ new Float32Array( 6 );
  */
 export class BVH {
 
+	/** Root node buffers of the BVH tree. */
+	_roots: ArrayBuffer[];
+
+	/** Indirect primitive index buffer, or null if not in indirect mode. */
+	_indirectBuffer: Uint32Array | Uint16Array | null;
+
 	constructor() {
 
-		/** @type {Array<ArrayBuffer>|null} */
-		this._roots = null;
+		this._roots = null!;
+		this._indirectBuffer = null;
 
 	}
 
-	init( options ) {
+	init( options: Record<string, any> ): void {
 
 		options = {
 			...DEFAULT_OPTIONS,
@@ -79,7 +105,7 @@ export class BVH {
 	 * @param {{start: number, count: number}|null} [_range]
 	 * @returns {Array<{offset: number, count: number}>}
 	 */
-	getRootRanges( _range ) {
+	getRootRanges( _range?: { start: number; count: number } | null ): Array<{ offset: number; count: number }> {
 
 		// TODO: can we avoid passing range in here?
 		throw new Error( 'BVH: getRootRanges() not implemented' );
@@ -88,13 +114,7 @@ export class BVH {
 
 	// write the i-th primitive bounds in a 6-value min / max format to the buffer
 	// starting at the given "writeOffset"
-	/**
-	 * @param {number} _i
-	 * @param {Float32Array} _buffer
-	 * @param {number} _writeOffset
-	 * @returns {*}
-	 */
-	writePrimitiveBounds( _i, _buffer, _writeOffset ) {
+	writePrimitiveBounds( _i: number, _buffer: OffsetFloat32Array, _writeOffset: number ): void {
 
 		throw new Error( 'BVH: writePrimitiveBounds() not implemented' );
 
@@ -102,7 +122,7 @@ export class BVH {
 
 	// writes the union bounds of all primitives in the given range in a min / max format
 	// to the buffer
-	writePrimitiveRangeBounds( offset, count, targetBuffer, baseIndex ) {
+	writePrimitiveRangeBounds( offset: number, count: number, targetBuffer: OffsetFloat32Array, baseIndex: number ): OffsetFloat32Array {
 
 		// Initialize bounds
 		let minX = Infinity;
@@ -140,7 +160,7 @@ export class BVH {
 
 	}
 
-	computePrimitiveBounds( offset, count, targetBuffer ) {
+	computePrimitiveBounds( offset: number, count: number, targetBuffer: OffsetFloat32Array ): OffsetFloat32Array {
 
 		const boundsOffset = targetBuffer.offset || 0;
 		for ( let i = offset, end = offset + count; i < end; i ++ ) {
@@ -177,7 +197,7 @@ export class BVH {
 	 * geometry buffers have been shifted or compacted (e.g. when merging geometries).
 	 * @param {number} offset
 	 */
-	shiftPrimitiveOffsets( offset ) {
+	shiftPrimitiveOffsets( offset: number ): void {
 
 		const indirectBuffer = this._indirectBuffer;
 		if ( indirectBuffer ) {
@@ -228,14 +248,23 @@ export class BVH {
 	 * @param {Function} callback
 	 * @param {number} [rootIndex=0]
 	 */
-	traverse( callback, rootIndex = 0 ) {
+	traverse(
+		callback: (
+			depth: number,
+			isLeaf: boolean,
+			boundingData: Float32Array,
+			offsetOrSplit: number,
+			count?: number,
+		) => boolean | void,
+		rootIndex: number = 0,
+	): void {
 
 		const buffer = this._roots[ rootIndex ];
 		const uint32Array = new Uint32Array( buffer );
 		const uint16Array = new Uint16Array( buffer );
 		_traverse( 0 );
 
-		function _traverse( node32Index, depth = 0 ) {
+		function _traverse( node32Index: number, depth: number = 0 ): void {
 
 			const node16Index = node32Index * 2;
 			const isLeaf = IS_LEAF( node16Index, uint16Array );
@@ -269,7 +298,7 @@ export class BVH {
 	 * Refits all BVH node bounds to reflect the current primitive positions. Faster than
 	 * rebuilding the BVH but produces a less optimal tree after large vertex deformations.
 	 */
-	refit( /* nodeIndices = null */ ) {
+	refit( /* nodeIndices = null */ ): void {
 
 		// TODO: add support for "nodeIndices"
 		// if ( nodeIndices && Array.isArray( nodeIndices ) ) {
@@ -335,7 +364,7 @@ export class BVH {
 	 * @param {Box3} target - Target box to write the result into.
 	 * @returns {Box3}
 	 */
-	getBoundingBox( target ) {
+	getBoundingBox( target: Box3 ): Box3 {
 
 		target.makeEmpty();
 
@@ -358,18 +387,12 @@ export class BVH {
 	 * `CONTAINED` from `intersectsBounds` skips further child traversal and intersects all
 	 * primitives in that subtree immediately.
 	 *
-	 * @param {Object} callbacks
-	 * @param {IntersectsBoundsCallback} callbacks.intersectsBounds
-	 * @param {IntersectsRangeCallback} [callbacks.intersectsRange]
-	 * @param {BoundsTraverseOrderCallback} [callbacks.boundsTraverseOrder]
-	 * @param {Function} [callbacks.intersectsPrimitive]
-	 * @param {*} [callbacks.scratchPrimitive]
-	 * @param {Function} [callbacks.iterate]
+	 * @param {ShapecastCallbacks} callbacks
 	 * @returns {boolean}
 	 */
 	// TODO: see if we can get rid of "iterateFunc" here as well as the primitive so the function
 	// API aligns with the "shapecast" implementation
-	shapecast( callbacks ) {
+	shapecast( callbacks: ShapecastCallbacks ): boolean {
 
 		// TODO: can we get rid of "scratchPrimitive" and / or "iterate"? Or merge them somehow
 		let {
@@ -389,7 +412,7 @@ export class BVH {
 
 				if ( ! originalIntersectsRange( offset, count, contained, depth, nodeIndex ) ) {
 
-					return iterate( offset, count, this, intersectsPrimitive, contained, depth, scratchPrimitive );
+					return iterate!( offset, count, this, intersectsPrimitive, contained, depth, scratchPrimitive );
 
 				}
 
@@ -403,13 +426,13 @@ export class BVH {
 
 				intersectsRange = ( offset, count, contained, depth ) => {
 
-					return iterate( offset, count, this, intersectsPrimitive, contained, depth, scratchPrimitive );
+					return iterate!( offset, count, this, intersectsPrimitive, contained, depth, scratchPrimitive );
 
 				};
 
 			} else {
 
-				intersectsRange = ( offset, count, contained ) => {
+				intersectsRange = ( _offset, _count, contained ) => {
 
 					return contained;
 
@@ -449,16 +472,19 @@ export class BVH {
 	 *
 	 * @param {BVH} otherBvh
 	 * @param {Matrix4} matrixToLocal
-	 * @param {Object} callbacks
-	 * @param {IntersectsRangesCallback} callbacks.intersectsRanges
+	 * @param {BvhcastCallbacks} callbacks
 	 * @returns {boolean}
 	 */
-	bvhcast( otherBvh, matrixToLocal, callbacks ) {
+	bvhcast( otherBvh: BVH, matrixToLocal: Matrix4, callbacks: BvhcastCallbacks ): boolean {
 
 		let { intersectsRanges } = callbacks;
 		return bvhcast( this, otherBvh, matrixToLocal, intersectsRanges );
 
-
 	}
 
 }
+
+// Declare properties that subclasses (GeometryBVH, ObjectBVH) define as getters/setters.
+// These are used by buildTree.js which reads bvh.primitiveBuffer / bvh.primitiveBufferStride.
+( BVH.prototype as unknown as Record<string, unknown> ).primitiveBuffer = null;
+( BVH.prototype as unknown as Record<string, unknown> ).primitiveBufferStride = null;

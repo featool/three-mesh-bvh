@@ -124,7 +124,7 @@ export interface MeshBVHShapecastCallbacks {
 		contained: boolean,
 		depth: number,
 		nodeIndex: number,
-		box: Box3,
+		box?: Box3,
 	) => boolean;
 
 	intersectsTriangle?: IntersectsTriangleCallback;

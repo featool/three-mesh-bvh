@@ -1,7 +1,5 @@
-/** @import { SkinnedMesh } from 'three' */
-/** @import { IntersectsBoundsCallback, IntersectsRangeCallback, BoundsTraverseOrderCallback } from './BVH.js' */
-import { Vector3, Vector2, Ray, Matrix4, FrontSide, BackSide, Triangle, REVISION } from 'three';
-import { GeometryBVH } from './GeometryBVH';
+import { Vector3, Vector2, Ray, Matrix4, FrontSide, BackSide, Triangle, REVISION, SkinnedMesh, Material, Object3D, Raycaster, Intersection, Box3, BufferAttribute } from 'three';
+import { GeometryBVH, GeometryBVHOptions } from './GeometryBVH';
 import { ExtendedTriangle } from '../math/ExtendedTriangle.js';
 import { INTERSECTED, NOT_INTERSECTED, SKIP_GENERATION } from './Constants';
 
@@ -11,7 +9,7 @@ const _v2 = /* @__PURE__ */ new Vector3();
 const _ray = /* @__PURE__ */ new Ray();
 const _inverseMatrix = /* @__PURE__ */ new Matrix4();
 const _localPoint = /* @__PURE__ */ new Vector3();
-const _axes = [ 'x', 'y', 'z' ];
+const _axes = [ 'x', 'y', 'z' ] as const;
 
 const IS_GT_REVISION_169 = parseInt( REVISION ) >= 169;
 const IS_LT_REVISION_161 = parseInt( REVISION ) <= 161;
@@ -23,33 +21,60 @@ const _normalA = /* @__PURE__ */ new Vector3();
 const _normalB = /* @__PURE__ */ new Vector3();
 const _normalC = /* @__PURE__ */ new Vector3();
 
-/**
- * @callback IntersectsTriangleCallback
- * @param {ExtendedTriangle} triangle - The triangle primitive in local space.
- * @param {number} index - The primitive index within the BVH buffer.
- * @param {boolean} contained - Whether the node bounds are fully contained by the query shape.
- * @param {number} depth - The depth of the node in the tree.
- * @returns {boolean} Return `true` to stop traversal.
- */
+/** Callback invoked for each triangle primitive during `shapecast`. */
+export type IntersectsTriangleCallback = (
+	triangle: ExtendedTriangle,
+	index: number,
+	contained: boolean,
+	depth: number,
+) => boolean | void;
+
+/** Callbacks accepted by {@link SkinnedMeshBVH.shapecast}. */
+export interface SkinnedMeshBVHShapecastCallbacks {
+
+	intersectsBounds: (
+		box: Box3,
+		isLeaf: boolean,
+		score: number | undefined,
+		depth: number,
+		nodeIndex: number,
+	) => number | boolean;
+
+	boundsTraverseOrder?: ( box: Box3 ) => number;
+
+	intersectsRange?: (
+		offset: number,
+		count: number,
+		contained: boolean,
+		depth: number,
+		nodeIndex: number,
+		box?: Box3,
+	) => boolean;
+
+	intersectsTriangle?: IntersectsTriangleCallback;
+
+}
+
+// Internal: a Float32Array carrying an `offset` field used by the build/cast helpers.
+type OffsetFloat32Array = Float32Array & { offset?: number };
 
 /**
  * BVH for `SkinnedMesh` objects. Computes primitive bounds using
  * `SkinnedMesh.getVertexPosition` so the tree reflects the current posed state
  * of the mesh. Call `refit()` after updating the skeleton to keep bounds accurate.
- *
- * @param {SkinnedMesh} mesh
- * @param {Object} [options] - Same options as {@link GeometryBVH}.
- * @extends GeometryBVH
  */
 export class SkinnedMeshBVH extends GeometryBVH {
 
-	get primitiveStride() {
+	/** The skinned mesh this BVH was built from. */
+	mesh: SkinnedMesh;
+
+	override get primitiveStride(): number {
 
 		return 3;
 
 	}
 
-	constructor( mesh, options = {} ) {
+	constructor( mesh: SkinnedMesh, options: GeometryBVHOptions = {} ) {
 
 		if ( ! mesh.isMesh ) {
 
@@ -63,22 +88,22 @@ export class SkinnedMeshBVH extends GeometryBVH {
 		super( mesh.geometry, {
 			...options,
 			[ SKIP_GENERATION ]: true,
-		} );
+		} as GeometryBVHOptions & Record<symbol, boolean> );
 		this.mesh = mesh;
 
-		if ( ! options[ SKIP_GENERATION ] ) {
+		if ( ! ( options as unknown as Record<symbol, boolean> )[ SKIP_GENERATION ] ) {
 
-			this.init( options );
+			this.init( options as unknown as Record<string, unknown> );
 
 		}
 
 	}
 
-	writePrimitiveBounds( i, targetBuffer, baseIndex ) {
+	writePrimitiveBounds( i: number, targetBuffer: OffsetFloat32Array, baseIndex: number ): OffsetFloat32Array {
 
 		const { mesh, geometry } = this;
 		const indirectBuffer = this._indirectBuffer;
-		const index = geometry.index ? geometry.index.array : null;
+		const index = geometry.index ? ( geometry.index.array as Uint32Array | Uint16Array ) : null;
 
 		const tri = indirectBuffer ? indirectBuffer[ i ] : i;
 		const tri3 = tri * 3;
@@ -130,14 +155,10 @@ export class SkinnedMeshBVH extends GeometryBVH {
 	 * Performs a spatial query against the BVH. Extends the base `shapecast` with an
 	 * `intersectsTriangle` callback that is called once per triangle primitive in leaf nodes.
 	 *
-	 * @param {Object} callbacks
-	 * @param {IntersectsBoundsCallback} callbacks.intersectsBounds
-	 * @param {IntersectsTriangleCallback} [callbacks.intersectsTriangle]
-	 * @param {IntersectsRangeCallback} [callbacks.intersectsRange]
-	 * @param {BoundsTraverseOrderCallback} [callbacks.boundsTraverseOrder]
-	 * @returns {boolean}
+	 * @param {SkinnedMeshBVHShapecastCallbacks} callbacks - The shapecast callbacks.
+	 * @returns {boolean} Whether an intersection was found.
 	 */
-	shapecast( callbacks ) {
+	shapecast( callbacks: SkinnedMeshBVHShapecastCallbacks ): boolean {
 
 		const triangle = new ExtendedTriangle();
 		return super.shapecast(
@@ -151,22 +172,32 @@ export class SkinnedMeshBVH extends GeometryBVH {
 
 	}
 
-	raycastObject3D( object, raycaster, intersects = [] ) {
+	/**
+	 * @param {Object3D} object - The object to raycast against.
+	 * @param {Raycaster} raycaster - The raycaster.
+	 * @param {Array<Intersection>} [intersects] - Array to append intersections to.
+	 * @returns {Array<Intersection>} The array of intersections.
+	 */
+	raycastObject3D(
+		object: Object3D,
+		raycaster: Raycaster,
+		intersects: Array<Intersection> = [],
+	): Array<Intersection> {
 
-		const { material } = object;
+		const { material } = object as { material?: Material | Material[] };
 		if ( material === undefined ) {
 
-			return;
+			return intersects;
 
 		}
 
 		const { matrixWorld } = object;
-		const { firstHitOnly } = raycaster;
+		const firstHitOnly = ( raycaster as Raycaster & { firstHitOnly?: boolean } ).firstHitOnly;
 
 		_inverseMatrix.copy( matrixWorld ).invert();
 		_ray.copy( raycaster.ray ).applyMatrix4( _inverseMatrix );
 
-		let closestHit = null;
+		let closestHit: Intersection | null = null;
 		let closestDistance = Infinity;
 
 		this.shapecast( {
@@ -183,12 +214,13 @@ export class SkinnedMeshBVH extends GeometryBVH {
 			intersectsTriangle: ( tri, triIndex ) => {
 
 				// get the intersection
-				let point = null;
-				if ( material.side === FrontSide ) {
+				const materialSide = Array.isArray( material ) ? material[ 0 ].side : material.side;
+				let point: Vector3 | null = null;
+				if ( materialSide === FrontSide ) {
 
 					point = _ray.intersectTriangle( tri.a, tri.b, tri.c, true, _localPoint );
 
-				} else if ( material.side === BackSide ) {
+				} else if ( materialSide === BackSide ) {
 
 					point = _ray.intersectTriangle( tri.c, tri.b, tri.a, true, _localPoint );
 
@@ -205,10 +237,10 @@ export class SkinnedMeshBVH extends GeometryBVH {
 				}
 
 				// transform it into world space
-				point = point.clone().applyMatrix4( matrixWorld );
+				const worldPoint = point.clone().applyMatrix4( matrixWorld );
 
 				// check distance to ray
-				const dist = raycaster.ray.origin.distanceTo( point );
+				const dist = raycaster.ray.origin.distanceTo( worldPoint );
 				if ( dist >= raycaster.near && dist <= raycaster.far ) {
 
 					if ( firstHitOnly && dist >= closestDistance ) {
@@ -229,20 +261,17 @@ export class SkinnedMeshBVH extends GeometryBVH {
 
 					if ( index ) {
 
-						ai = index.array[ ai ];
-						bi = index.array[ bi ];
-						ci = index.array[ ci ];
+						ai = ( index.array as Uint32Array | Uint16Array )[ ai ];
+						bi = ( index.array as Uint32Array | Uint16Array )[ bi ];
+						ci = ( index.array as Uint32Array | Uint16Array )[ ci ];
 
 					}
 
 					// build the intersection result
-					const hit = {
+					const hit: Intersection = {
 						distance: dist,
-						point: point.clone(),
+						point: worldPoint.clone(),
 						object,
-						uv: null,
-						uv1: null,
-						normal: null,
 						face: {
 							a: ai,
 							b: bi,
@@ -262,9 +291,9 @@ export class SkinnedMeshBVH extends GeometryBVH {
 					}
 
 					// add attribute fields if available
-					const uv = geometry.attributes.uv;
-					const uv1 = geometry.attributes.uv1;
-					const normal = geometry.attributes.normal;
+					const uv = geometry.attributes.uv as BufferAttribute | undefined;
+					const uv1 = geometry.attributes.uv1 as BufferAttribute | undefined;
+					const normal = geometry.attributes.normal as BufferAttribute | undefined;
 
 					if ( uv ) {
 
@@ -273,8 +302,8 @@ export class SkinnedMeshBVH extends GeometryBVH {
 						_uvC.fromBufferAttribute( uv, ci );
 
 						hit.uv = new Vector2();
-						const resUv = Triangle.getInterpolation( _localPoint, tri.a, tri.b, tri.c, _uvA, _uvB, _uvC, hit.uv );
-						if ( ! IS_GT_REVISION_169 ) hit.uv = resUv;
+						const resUv = Triangle.getInterpolation( _localPoint, tri.a, tri.b, tri.c, _uvA, _uvB, _uvC, hit.uv! );
+						if ( ! IS_GT_REVISION_169 ) hit.uv = resUv!;
 
 					}
 
@@ -285,9 +314,9 @@ export class SkinnedMeshBVH extends GeometryBVH {
 						_uvC.fromBufferAttribute( uv1, ci );
 
 						hit.uv1 = new Vector2();
-						const resUv1 = Triangle.getInterpolation( _localPoint, tri.a, tri.b, tri.c, _uvA, _uvB, _uvC, hit.uv1 );
-						if ( ! IS_GT_REVISION_169 ) hit.uv1 = resUv1;
-						if ( IS_LT_REVISION_161 ) hit.uv2 = hit.uv1;
+						const resUv1 = Triangle.getInterpolation( _localPoint, tri.a, tri.b, tri.c, _uvA, _uvB, _uvC, hit.uv1! );
+						if ( ! IS_GT_REVISION_169 ) hit.uv1 = resUv1!;
+						if ( IS_LT_REVISION_161 ) ( hit as Intersection & { uv2?: Vector2 } ).uv2 = hit.uv1;
 
 					}
 
@@ -298,14 +327,14 @@ export class SkinnedMeshBVH extends GeometryBVH {
 						_normalC.fromBufferAttribute( normal, ci );
 
 						hit.normal = new Vector3();
-						const resNormal = Triangle.getInterpolation( _localPoint, tri.a, tri.b, tri.c, _normalA, _normalB, _normalC, hit.normal );
+						const resNormal = Triangle.getInterpolation( _localPoint, tri.a, tri.b, tri.c, _normalA, _normalB, _normalC, hit.normal! );
 						if ( hit.normal.dot( _ray.direction ) > 0 ) {
 
 							hit.normal.multiplyScalar( - 1 );
 
 						}
 
-						if ( ! IS_GT_REVISION_169 ) hit.normal = resNormal;
+						if ( ! IS_GT_REVISION_169 ) hit.normal = resNormal!;
 
 					}
 
@@ -321,7 +350,7 @@ export class SkinnedMeshBVH extends GeometryBVH {
 
 				}
 
-			}
+			},
 		} );
 
 		if ( firstHitOnly && closestHit ) {
@@ -337,17 +366,17 @@ export class SkinnedMeshBVH extends GeometryBVH {
 }
 
 function iterateOverTriangles(
-	offset,
-	count,
-	bvh,
-	intersectsTriangleFunc,
-	contained,
-	depth,
-	triangle
-) {
+	offset: number,
+	count: number,
+	bvh: SkinnedMeshBVH,
+	intersectsTriangleFunc: ( triangle: ExtendedTriangle, index: number, contained: boolean, depth: number ) => boolean | void,
+	contained: boolean,
+	depth: number,
+	triangle: ExtendedTriangle,
+): boolean {
 
 	const { mesh, geometry } = bvh;
-	const index = geometry.index ? geometry.index.array : null;
+	const index = geometry.index ? ( geometry.index.array as Uint32Array | Uint16Array ) : null;
 
 	for ( let i = offset, l = count + offset; i < l; i ++ ) {
 
