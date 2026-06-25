@@ -3,7 +3,7 @@ export * from './core/GeometryBVH';
 export * from './core/MeshBVH';
 export * from './core/LineBVH';
 export * from './core/PointsBVH';
-export * from './core/ObjectBVH.js';
+export * from './core/ObjectBVH';
 export * from './core/SkinnedMeshBVH.js';
 export type { IntersectsTriangleCallback } from './core/MeshBVH';
 export * from './objects/BVHHelper.js';

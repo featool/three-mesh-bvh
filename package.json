@@ -23,6 +23,7 @@
     "build-examples": "npm run build && vite build --config ./vite.config.js && cp ./example/coi-serviceworker.js ./example/bundle/",
     "test": "npm run build-silent && vitest run",
     "lint": "eslint . && tsc --noEmit",
+    "lint-fix": "eslint . --fix",
     "benchmark": "npm run build-silent && node benchmark/run-benchmark.js",
     "prepublishOnly": "npm run build"
   },
